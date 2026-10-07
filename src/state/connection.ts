@@ -15,13 +15,13 @@ let stream: AbortController | null = null;
 
 export function currentApi(): KanaApi {
   if (!api || useClientStore.getState().status !== "connected")
-    throw new Error("请先连接 server 并完成同步。");
+    throw new Error("Connect and sync before continuing.");
   return api;
 }
 
 export function currentSessionId(): string {
   const id = useClientStore.getState().snapshot?.session?.id;
-  if (!id) throw new Error("server 暂无活跃会话。");
+  if (!id) throw new Error("No active session on the server.");
   return id;
 }
 
@@ -40,7 +40,7 @@ function activate(settings: ConnectionSettings): void {
     snapshot: null,
     connectionError: null,
     notice: null,
-    compacting: false,
+    activity: null,
   });
   reconnect();
 }
@@ -54,7 +54,7 @@ export function disconnect(): void {
     status: "disconnected",
     snapshot: null,
     connectionError: null,
-    compacting: false,
+    activity: null,
   });
 }
 

@@ -34,7 +34,7 @@ describe("HTTP and SSE transport", () => {
       normalizeSettings({ address: "https://example.com?token=secret", token: "secret" }),
     ).toThrow();
   });
-  test("sends session IDs, delivery choices and approval decisions with Bearer auth", async () => {
+  test("sends a plain message and all four approval decisions with Bearer auth", async () => {
     const requests: { path: string; auth: string | null; body: unknown }[] = [];
     const server = Bun.serve({
       port: 0,
@@ -53,14 +53,17 @@ describe("HTTP and SSE transport", () => {
         address: `${server.url.toString().replace(/\/$/, "")}/kana`,
         token: "secret",
       });
-      await api.send("session-a", "第一条指令", "queue");
+      await api.send("session-a", "第一条指令");
       await api.abort("session-a");
       await api.decide("session-a", "approval-a", "reject");
+      for (const decision of ["allow", "always", "never"] as const) {
+        await api.decide("session-a", "approval-a", decision);
+      }
       expect(requests).toEqual([
         {
           path: "/kana/v1/messages",
           auth: "Bearer secret",
-          body: { session_id: "session-a", message: "第一条指令", delivery: "queue" },
+          body: { session_id: "session-a", message: "第一条指令" },
         },
         { path: "/kana/v1/abort", auth: "Bearer secret", body: { session_id: "session-a" } },
         {
@@ -68,6 +71,11 @@ describe("HTTP and SSE transport", () => {
           auth: "Bearer secret",
           body: { session_id: "session-a", decision: "reject" },
         },
+        ...["allow", "always", "never"].map((decision) => ({
+          path: "/kana/v1/approvals/approval-a",
+          auth: "Bearer secret",
+          body: { session_id: "session-a", decision },
+        })),
       ]);
     } finally {
       await server.stop(true);
@@ -88,7 +96,7 @@ describe("HTTP and SSE transport", () => {
         address: server.url.toString().replace(/\/$/, ""),
         token: "secret",
       });
-      await expect(api.send("session-a", "Work", "auto")).rejects.toMatchObject({ status: 503 });
+      await expect(api.send("session-a", "Work")).rejects.toMatchObject({ status: 503 });
       expect(requests).toBe(1);
     } finally {
       await server.stop(true);

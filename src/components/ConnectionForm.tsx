@@ -29,7 +29,7 @@ export function ConnectionForm({
         try {
           const value = normalizeSettings({ address, token });
           if (Capacitor.isNativePlatform() && new URL(value.address).protocol !== "https:")
-            throw new Error("Android 请使用反向代理提供的 HTTPS 地址。");
+            throw new Error("Use an HTTPS server URL on Android.");
           await connect(value);
           onConnected?.();
         } catch (failure) {
@@ -40,7 +40,7 @@ export function ConnectionForm({
       }}
     >
       <IonInput
-        label="Server 地址"
+        label="Server URL"
         labelPlacement="stacked"
         fill="outline"
         type="url"
@@ -53,7 +53,7 @@ export function ConnectionForm({
         required
       />
       <IonInput
-        label="访问 token"
+        label="Token"
         labelPlacement="stacked"
         fill="outline"
         type="password"
@@ -64,14 +64,13 @@ export function ConnectionForm({
         onIonInput={(event) => setToken(event.detail.value ?? "")}
         required
       />
-      <p className="form-hint">地址和 token 保存到本机，重开 App 自动连接。</p>
       {error && (
         <p className="form-error" role="alert">
           {error}
         </p>
       )}
       <IonButton expand="block" type="submit" disabled={busy || !address.trim() || !token.trim()}>
-        {busy ? <IonSpinner name="crescent" /> : "保存并连接"}
+        {busy ? <IonSpinner name="crescent" /> : "Connect"}
       </IonButton>
       {onDisconnected && status !== "disconnected" && (
         <IonButton
@@ -84,7 +83,7 @@ export function ConnectionForm({
             onDisconnected();
           }}
         >
-          断开连接
+          Disconnect
         </IonButton>
       )}
     </form>

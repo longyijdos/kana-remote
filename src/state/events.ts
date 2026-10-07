@@ -8,6 +8,79 @@ import type {
   UserMessage,
 } from "../api/types";
 
+export type TranscriptActivity = "working" | "preparing" | "prepared" | "compacting";
+
+function assistantActivity(snapshot: Snapshot, prepared = false): TranscriptActivity | null {
+  const message =
+    snapshot.assistant ?? snapshot.session?.messages.findLast((item) => item.role === "assistant");
+  const calls =
+    message?.role === "assistant"
+      ? message.content.filter((content) => content.type === "tool_call")
+      : [];
+  if (
+    calls.length &&
+    !calls.some(
+      (call) =>
+        snapshot.tools.some((tool) => tool.tool_call_id === call.id) ||
+        snapshot.session?.messages.some(
+          (item) => item.role === "tool" && item.toolCallId === call.id,
+        ),
+    )
+  ) {
+    return prepared || snapshot.approvals.length > 0 ? "prepared" : "preparing";
+  }
+  if (snapshot.tools.some((tool) => tool.status === "running")) return null;
+  if (
+    snapshot.assistant?.content.some(
+      (content) => (content.type === "text" && content.text) || content.type === "hosted_tool",
+    )
+  )
+    return null;
+  return snapshot.assistant || !calls.length ? "working" : null;
+}
+
+export function projectActivity(
+  previous: TranscriptActivity | null,
+  event: ServerEvent,
+  snapshot: Snapshot | null,
+): TranscriptActivity | null {
+  if (!snapshot?.running) return null;
+  switch (event.type) {
+    case "snapshot":
+      return (
+        assistantActivity(snapshot) ??
+        (snapshot.tools.every((tool) => tool.status === "completed") && !snapshot.assistant
+          ? "working"
+          : null)
+      );
+    case "run.started":
+    case "model_turn.started":
+    case "assistant.started":
+      return "working";
+    case "assistant.delta":
+    case "assistant.content":
+      return assistantActivity(snapshot, previous === "prepared");
+    case "assistant.completed": {
+      const message = (event.data as { message: AssistantMessage }).message;
+      if (message.stopReason === "aborted" || message.stopReason === "error") return null;
+      return message.content.some((content) => content.type === "tool_call")
+        ? assistantActivity(snapshot, previous === "prepared")
+        : null;
+    }
+    case "approval.required":
+      return previous === "preparing" ? "prepared" : previous;
+    case "tool.started":
+    case "tool.completed":
+      return null;
+    case "context.compaction_started":
+      return "compacting";
+    case "context.compacted":
+      return "working";
+    default:
+      return previous;
+  }
+}
+
 function upsertMessage(snapshot: Snapshot, message: Message): Snapshot {
   if (!snapshot.session) return snapshot;
   const messages = [...snapshot.session.messages];
@@ -39,6 +112,12 @@ export function applyEvent(snapshot: Snapshot | null, event: ServerEvent): Snaps
       return {
         ...snapshot,
         running: false,
+        tools:
+          data.outcome === "aborted"
+            ? snapshot.tools.map((tool) =>
+                tool.status === "running" ? { ...tool, canceled: true, paused: false } : tool,
+              )
+            : snapshot.tools,
         run: snapshot.run
           ? { ...snapshot.run, status: "completed", outcome: data.outcome ?? undefined }
           : null,
@@ -128,15 +207,30 @@ export function visibleMessages(snapshot: Snapshot): (UserMessage | AssistantMes
       return (
         message.provenance.kind === "user_input" || message.provenance.kind === "scheduled_input"
       );
-    return (
-      message.role === "assistant" && message.content.some((content) => content.type !== "thinking")
-    );
+    return message.role === "assistant" && hasVisibleContent(message, snapshot);
   });
   if (
-    snapshot.assistant?.content.some((content) => content.type !== "thinking") &&
+    snapshot.assistant &&
+    hasVisibleContent(snapshot.assistant, snapshot) &&
     !visible.some((message) => message.id === snapshot.assistant?.id)
   ) {
     visible.push(snapshot.assistant);
   }
   return visible;
+}
+
+function hasVisibleContent(message: AssistantMessage, snapshot: Snapshot): boolean {
+  return message.content.some((content) => {
+    if (content.type === "text") return Boolean(content.text.trim());
+    if (content.type === "hosted_tool") return true;
+    if (content.type !== "tool_call") return false;
+    return (
+      snapshot.tools.some((tool) => tool.tool_call_id === content.id) ||
+      Boolean(
+        snapshot.session?.messages.some(
+          (item) => item.role === "tool" && item.toolCallId === content.id,
+        ),
+      )
+    );
+  });
 }

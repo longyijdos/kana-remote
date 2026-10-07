@@ -3,12 +3,14 @@ import {
   IonButtons,
   IonContent,
   IonHeader,
+  IonIcon,
   IonModal,
   IonSpinner,
   IonTitle,
   IonToolbar,
 } from "@ionic/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { closeOutline } from "ionicons/icons";
 import { errorMessage } from "../api/client";
 import { currentApi, handleActionError, reconnect } from "../state/connection";
 import { useClientStore } from "../state/store";
@@ -48,46 +50,47 @@ export function SessionsModal({
     <IonModal isOpen={open} onDidDismiss={onClose} className="sheet-modal">
       <IonHeader>
         <IonToolbar>
-          <IonTitle>会话</IonTitle>
+          <IonTitle>Sessions</IonTitle>
           <IonButtons slot="end">
-            <IonButton onClick={onClose}>关闭</IonButton>
+            <IonButton aria-label="Close" onClick={onClose}>
+              <IonIcon slot="icon-only" icon={closeOutline} />
+            </IonButton>
           </IonButtons>
         </IonToolbar>
       </IonHeader>
       <IonContent>
         <div className="sheet-body">
-          <p className="muted">server 只有一个活跃会话。空闲时可以新建或恢复历史会话。</p>
           <div className="active-session">
             <span className="status-dot" />
             <div>
-              <strong>当前会话</strong>
-              <code>{active ?? "等待同步"}</code>
+              <strong>Current session</strong>
+              <code>{active ?? "Syncing"}</code>
             </div>
           </div>
           <IonButton expand="block" disabled={unavailable} onClick={() => change.mutate(null)}>
             {change.isPending && change.variables === null ? (
               <IonSpinner name="crescent" />
             ) : (
-              "新建会话"
+              "New session"
             )}
           </IonButton>
-          <h2 className="section-label">恢复历史会话</h2>
+          <h2 className="section-label">Saved sessions</h2>
           {sessions.isPending && (
             <div className="loading-inline">
               <IonSpinner name="crescent" />
-              <span>正在读取会话</span>
+              <span>Loading</span>
             </div>
           )}
           {sessions.isError && (
             <div className="form-error">
               <p>{errorMessage(sessions.error)}</p>
               <IonButton size="small" fill="outline" onClick={() => void sessions.refetch()}>
-                重新读取
+                Retry
               </IonButton>
             </div>
           )}
           {!sessions.isPending && !sessions.isError && !saved.length && (
-            <p className="muted">暂无历史会话。</p>
+            <p className="muted">No saved sessions.</p>
           )}
           <div className="session-list">
             {saved.map((session) => (
@@ -98,11 +101,11 @@ export function SessionsModal({
                 disabled={unavailable}
                 onClick={() => change.mutate(session.id)}
               >
-                <strong>{session.title || "未命名会话"}</strong>
+                <strong>{session.title || "Untitled"}</strong>
                 <span>{session.cwd}</span>
                 <small>
-                  {new Date(session.updatedAt).toLocaleString("zh-CN")}{" "}
-                  {change.isPending && change.variables === session.id ? " · 恢复中…" : ""}
+                  {new Date(session.updatedAt).toLocaleString("en")}{" "}
+                  {change.isPending && change.variables === session.id ? " · Resuming…" : ""}
                 </small>
               </button>
             ))}

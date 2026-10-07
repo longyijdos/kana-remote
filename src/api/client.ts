@@ -1,5 +1,6 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import type {
+  ApprovalDecision,
   ConnectionSettings,
   MessageReceipt,
   ServerEvent,
@@ -22,29 +23,34 @@ export class ApiError extends Error {
 export function normalizeSettings(settings: ConnectionSettings): ConnectionSettings {
   const url = new URL(settings.address.trim());
   if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) {
-    throw new Error("请输入 HTTP 或 HTTPS 的 server 地址。");
+    throw new Error("Enter an HTTP or HTTPS server URL.");
   }
-  if (url.search || url.hash) throw new Error("server 地址不能包含查询参数或片段。");
+  if (url.search || url.hash) throw new Error("The server URL cannot contain a query or fragment.");
   const token = settings.token.trim();
-  if (!token) throw new Error("请填写访问 token。");
+  if (!token) throw new Error("Enter an access token.");
   return { address: url.toString().replace(/\/+$/, ""), token };
 }
 
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.status === 401) return "认证失败，请检查 token。";
-    if (error.code === "session_mismatch") return "当前会话已改变，正在同步；请确认内容后再操作。";
-    if (error.code === "busy") return "Agent 仍在工作，请等运行结束后再切换会话。";
-    if (error.code === "not_found") return "该会话或审批已不存在，请刷新后再试。";
-    if (error.status === 503) return "server 正在关闭，请稍后重新连接。";
+    if (error.status === 401) return "Authentication failed. Check your token.";
+    if (error.code === "session_mismatch")
+      return "Session changed. Syncing; review your message before retrying.";
+    if (error.code === "busy")
+      return "Wait for the current run to finish before switching sessions.";
+    if (error.code === "not_found")
+      return "This session or approval no longer exists. Sync and try again.";
+    if (error.status === 503) return "The server is shutting down. Reconnect later.";
     return error.message;
   }
-  if (error instanceof TypeError) return "连接失败，请检查地址、网络和反向代理 CORS 配置。";
+  if (error instanceof TypeError)
+    return "Connection failed. Check the URL, network and proxy CORS settings.";
   if (error instanceof Error) {
-    if (error.name === "TimeoutError") return "请求超时，尚未确认是否送达；请先同步状态。";
+    if (error.name === "TimeoutError")
+      return "Request timed out. Delivery is unconfirmed; sync before retrying.";
     return error.message;
   }
-  return "操作失败，请稍后重试。";
+  return "Request failed. Try again later.";
 }
 
 export class KanaApi {
@@ -84,15 +90,15 @@ export class KanaApi {
     return this.request(`/v1/sessions/${encodeURIComponent(id)}/resume`, {});
   }
 
-  send(sessionId: string, message: string, delivery: "auto" | "queue"): Promise<MessageReceipt> {
-    return this.request("/v1/messages", { session_id: sessionId, message, delivery });
+  send(sessionId: string, message: string): Promise<MessageReceipt> {
+    return this.request("/v1/messages", { session_id: sessionId, message });
   }
 
   abort(sessionId: string): Promise<{ stopping: true }> {
     return this.request("/v1/abort", { session_id: sessionId });
   }
 
-  decide(sessionId: string, id: string, decision: "allow" | "reject"): Promise<{ resolved: true }> {
+  decide(sessionId: string, id: string, decision: ApprovalDecision): Promise<{ resolved: true }> {
     return this.request(`/v1/approvals/${encodeURIComponent(id)}`, {
       session_id: sessionId,
       decision,
@@ -111,23 +117,28 @@ export class KanaApi {
       async onopen(response) {
         if (!response.ok) await readResponse(response);
         if (!response.headers.get("content-type")?.startsWith("text/event-stream")) {
-          throw new ApiError(0, "invalid_stream", "入口未返回事件流，请检查反向代理路由。");
+          throw new ApiError(
+            0,
+            "invalid_stream",
+            "Expected an event stream. Check the proxy route.",
+          );
         }
       },
       onmessage(message) {
         if (!message.data) return;
         const event = JSON.parse(message.data) as ServerEvent;
         if (event.schema_version !== 1) {
-          throw new ApiError(0, "unsupported_schema", "server 协议版本不兼容。");
+          throw new ApiError(0, "unsupported_schema", "Unsupported server protocol version.");
         }
         callbacks.onEvent(event);
       },
       onclose() {
-        throw new Error("事件连接已断开，正在重连。");
+        throw new Error("Event stream disconnected. Reconnecting.");
       },
       onerror(error) {
         if (error instanceof ApiError && (error.status === 401 || error.status < 500)) throw error;
-        if (error instanceof SyntaxError) throw new Error("事件数据无法解析，请检查 server 版本。");
+        if (error instanceof SyntaxError)
+          throw new Error("Invalid event data. Check the server version.");
         callbacks.onRetry(error);
         return 2_000;
       },
@@ -143,11 +154,11 @@ async function readResponse<T>(response: Response): Promise<T> {
     throw new ApiError(
       response.status,
       body?.error?.code ?? "request_failed",
-      body?.error?.message ?? `请求失败（${response.status}），请检查反向代理入口。`,
+      body?.error?.message ?? `Request failed (${response.status}). Check the proxy route.`,
     );
   }
-  if (!body) throw new ApiError(0, "invalid_response", "入口未返回 JSON，请检查反向代理路由。");
+  if (!body) throw new ApiError(0, "invalid_response", "Expected JSON. Check the proxy route.");
   if (body.schema_version !== 1)
-    throw new ApiError(0, "unsupported_schema", "server 协议版本不兼容。");
+    throw new ApiError(0, "unsupported_schema", "Unsupported server protocol version.");
   return body.data as T;
 }

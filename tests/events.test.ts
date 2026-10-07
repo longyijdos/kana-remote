@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { AssistantMessage, ServerEvent, Snapshot, UserMessage } from "../src/api/types";
-import { applyEvent, visibleMessages } from "../src/state/events";
+import {
+  applyEvent,
+  projectActivity,
+  type TranscriptActivity,
+  visibleMessages,
+} from "../src/state/events";
 
 const user: UserMessage = {
   id: "user-1",
@@ -183,5 +188,170 @@ describe("server event projection", () => {
     expect(state?.running).toBe(false);
     expect(state?.run?.outcome).toBe("aborted");
     expect(state?.input_queue.pending).toHaveLength(1);
+  });
+});
+
+describe("transcript activity", () => {
+  const toolMessage: AssistantMessage = {
+    id: "tool-message",
+    role: "assistant",
+    stopReason: "toolUse",
+    content: [{ type: "tool_call", id: "call-a", name: "shell", args: { command: "pwd" } }],
+  };
+  const approval = {
+    id: "approval-a",
+    session_id: "session-a",
+    allow_always: true,
+    agent: { id: "main", label: "Main", kind: "main" as const },
+    tool_call: { id: "call-a", name: "shell", arguments: { command: "pwd" } },
+  };
+  function running(): Snapshot {
+    return {
+      ...snapshot(),
+      running: true,
+      run: { id: "run-a", source: "user", status: "running" },
+    };
+  }
+
+  test("shows Working before output regardless of provider reasoning support", () => {
+    let state = applyEvent(snapshot(), event("run.started", { source: "user", input: user }));
+    expect(projectActivity(null, event("run.started", {}), state)).toBe("working");
+    state = applyEvent(
+      state,
+      event("assistant.started", { message: { ...assistant, content: [] } }),
+    );
+    expect(projectActivity("working", event("assistant.started", {}), state)).toBe("working");
+    state = applyEvent(
+      state,
+      event("assistant.delta", {
+        message_id: assistant.id,
+        kind: "text_delta",
+        content_index: 0,
+        delta: "Hello",
+      }),
+    );
+    expect(projectActivity("working", event("assistant.delta", {}), state)).toBeNull();
+  });
+
+  test("preparation freezes through approval and becomes a tool block at execution", () => {
+    let state: Snapshot | null = running();
+    let activity: TranscriptActivity | null = "working";
+    function receive(type: string, data: unknown) {
+      const update = event(type, data);
+      state = applyEvent(state, update);
+      activity = projectActivity(activity, update, state);
+    }
+    receive("assistant.started", { message: { ...toolMessage, content: [] } });
+    receive("assistant.content", {
+      message_id: toolMessage.id,
+      content_index: 0,
+      content: toolMessage.content[0],
+    });
+    expect(activity).toBe("preparing");
+    expect(visibleMessages(state ?? snapshot())).toEqual([]);
+    receive("assistant.completed", { message: toolMessage });
+    receive("approval.required", approval);
+    expect(activity).toBe("prepared");
+    receive("approval.resolved", { id: approval.id, decision: "allow" });
+    expect(activity).toBe("prepared");
+    receive("tool.started", {
+      tool_call_id: "call-a",
+      name: "shell",
+      status: "running",
+      arguments: { command: "pwd" },
+    });
+    expect(activity).toBeNull();
+    expect(visibleMessages(state ?? snapshot())).toEqual([toolMessage]);
+    receive("tool.completed", {
+      tool_call_id: "call-a",
+      name: "shell",
+      status: "completed",
+      result: { content: "/tmp" },
+      is_error: false,
+    });
+    receive("model_turn.started", { turn: 2 });
+    expect(activity).toBe("working");
+  });
+
+  test("restores preparation and prepared status from reconnect snapshots", () => {
+    const preparing = { ...running(), assistant: toolMessage };
+    expect(projectActivity(null, event("snapshot", preparing), preparing)).toBe("preparing");
+    const prepared = {
+      ...running(),
+      session: { ...snapshot().session, messages: [toolMessage] },
+      approvals: [approval],
+    };
+    expect(projectActivity(null, event("snapshot", prepared), prepared)).toBe("prepared");
+    const executing: Snapshot = {
+      ...prepared,
+      approvals: [],
+      tools: [{ tool_call_id: "call-a", name: "shell", status: "running" }],
+    };
+    expect(projectActivity("prepared", event("snapshot", executing), executing)).toBeNull();
+  });
+
+  test("does not mistake old completed calls for a new preparation phase", () => {
+    const state: Snapshot = {
+      ...running(),
+      session: {
+        ...snapshot().session,
+        messages: [
+          toolMessage,
+          {
+            id: "result-a",
+            role: "tool",
+            toolCallId: "call-a",
+            toolName: "shell",
+            content: "/tmp",
+            isError: false,
+          },
+        ],
+      },
+    };
+    expect(projectActivity(null, event("snapshot", state), state)).toBe("working");
+    expect(visibleMessages(state)).toEqual([toolMessage]);
+  });
+
+  test("stopping cancels an unfinished tool and clears transient activity", () => {
+    const state: Snapshot = {
+      ...running(),
+      tools: [{ tool_call_id: "call-a", name: "shell", status: "running" }],
+    };
+    const update = event("run.completed", { outcome: "aborted" });
+    const stopped = applyEvent(state, update);
+    expect(stopped?.tools[0]).toMatchObject({ canceled: true, paused: false });
+    expect(projectActivity("preparing", update, stopped)).toBeNull();
+    const failed = event("assistant.completed", {
+      message: { ...toolMessage, stopReason: "error" },
+    });
+    expect(projectActivity("preparing", failed, applyEvent(running(), failed))).toBeNull();
+  });
+
+  test("nested approvals pause the existing tool without adding a preparation phase", () => {
+    let state: Snapshot | null = {
+      ...running(),
+      tools: [{ tool_call_id: "parent", name: "run_code", status: "running" }],
+    };
+    const pause = event("tool.paused", {
+      tool_call_id: "parent",
+      name: "run_code",
+      reason: "approval",
+    });
+    state = applyEvent(state, pause);
+    const required = event("approval.required", {
+      ...approval,
+      tool_call: { ...approval.tool_call, id: "child" },
+    });
+    state = applyEvent(state, required);
+    expect(projectActivity(null, required, state)).toBeNull();
+    expect(state?.tools[0]?.paused).toBe(true);
+  });
+
+  test("compaction replaces the current activity and resumes Working afterwards", () => {
+    const state = running();
+    expect(projectActivity("working", event("context.compaction_started", {}), state)).toBe(
+      "compacting",
+    );
+    expect(projectActivity("compacting", event("context.compacted", {}), state)).toBe("working");
   });
 });

@@ -30,7 +30,7 @@ export function CodeBlock({ code, language }: { code: string; language: string }
   return (
     <div className="code-block">
       <div className="code-toolbar">
-        <span>{language || "代码"}</span>
+        <span>{language || "Code"}</span>
         <CopyButton value={code} />
       </div>
       <pre>

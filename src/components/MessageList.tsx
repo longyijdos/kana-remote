@@ -1,10 +1,22 @@
+import { IonIcon, IonSpinner } from "@ionic/react";
+import { arrowDownOutline, checkmarkOutline } from "ionicons/icons";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import type { AssistantMessage, Snapshot, UserMessage } from "../api/types";
-import { visibleMessages } from "../state/events";
+import { type TranscriptActivity, visibleMessages } from "../state/events";
 import { CopyButton } from "./CopyButton";
 import { Markdown } from "./Markdown";
 import { Images, ToolCard } from "./ToolCard";
+
+type TranscriptRow =
+  | { kind: "message"; id: string; message: UserMessage | AssistantMessage }
+  | { kind: "activity"; id: string; activity: TranscriptActivity };
+const activityLabels = {
+  working: "Working…",
+  preparing: "Preparing tools…",
+  prepared: "Prepared tools",
+  compacting: "Compacting context…",
+};
 
 const MessageRow = memo(function MessageRow({
   message,
@@ -13,7 +25,7 @@ const MessageRow = memo(function MessageRow({
   message: UserMessage | AssistantMessage;
   snapshot: Snapshot;
 }) {
-  if (message.role === "user") {
+  if (message.role === "user")
     return (
       <article className="message-row user-row">
         <div className="user-message">
@@ -22,7 +34,6 @@ const MessageRow = memo(function MessageRow({
         </div>
       </article>
     );
-  }
   const results = snapshot.session?.messages.filter((item) => item.role === "tool") ?? [];
   const text = message.content
     .filter((content) => content.type === "text")
@@ -30,10 +41,9 @@ const MessageRow = memo(function MessageRow({
     .join("\n\n");
   return (
     <article className="message-row assistant-row">
-      <div className="assistant-label">
+      <div className="assistant-label" role="img" aria-label="Kana">
         <span className="agent-mark small">K</span>
-        <span>Kana</span>
-        {snapshot.assistant?.id === message.id && <span className="live-label">实时</span>}
+        <span className="brand-name">ana</span>
       </div>
       {message.content.map((content, index) => {
         if (content.type === "thinking") return null;
@@ -42,40 +52,61 @@ const MessageRow = memo(function MessageRow({
             // biome-ignore lint/suspicious/noArrayIndexKey: Protocol content indexes are stable while streaming.
             <Markdown key={`text-${index}`} text={content.text} />
           ) : null;
-        if (content.type === "tool_call")
+        if (content.type === "tool_call") {
+          const state = snapshot.tools.find((item) => item.tool_call_id === content.id);
+          const result = results.find((item) => item.toolCallId === content.id);
+          if (!state && !result) return null;
           return (
             <ToolCard
               key={content.id}
               name={content.name}
-              args={content.rawArgs && !content.args ? content.rawArgs : content.args}
-              state={snapshot.tools.find((item) => item.tool_call_id === content.id)}
-              result={results.find((item) => item.toolCallId === content.id)}
+              args={content.args}
+              state={state}
+              result={result}
             />
           );
-        if (content.type === "hosted_tool")
-          return (
-            <ToolCard
-              key={content.id}
-              name={content.name}
-              args={content.action}
-              hostedStatus={content.status}
-            />
-          );
-        return null;
+        }
+        return (
+          <ToolCard
+            key={content.id}
+            name={content.name}
+            args={content.action}
+            hostedStatus={content.status}
+          />
+        );
       })}
-      {message.stopReason === "error" && <p className="message-warning">响应未完成。</p>}
-      {message.stopReason === "aborted" && <p className="muted">本次响应已停止。</p>}
+      {message.stopReason === "error" && <p className="message-warning">Response incomplete.</p>}
+      {message.stopReason === "aborted" && <p className="muted">Stopped.</p>}
       {text && snapshot.assistant?.id !== message.id && (
         <div className="message-actions">
-          <CopyButton value={text} label="复制回复" />
+          <CopyButton value={text} label="Copy response" />
         </div>
       )}
     </article>
   );
 });
 
-export function MessageList({ snapshot }: { snapshot: Snapshot }) {
-  const rows = useMemo(() => visibleMessages(snapshot), [snapshot]);
+export function MessageList({
+  snapshot,
+  activity,
+}: {
+  snapshot: Snapshot;
+  activity: TranscriptActivity | null;
+}) {
+  const rows = useMemo<TranscriptRow[]>(() => {
+    const messages: TranscriptRow[] = visibleMessages(snapshot).map((message) => ({
+      kind: "message",
+      id: message.id,
+      message,
+    }));
+    if (activity)
+      messages.push({
+        kind: "activity",
+        id: `activity-${snapshot.run?.id ?? "pending"}`,
+        activity,
+      });
+    return messages;
+  }, [snapshot, activity]);
   const virtuoso = useRef<VirtuosoHandle>(null);
   const atBottom = useRef(true);
   const [showLatest, setShowLatest] = useState(false);
@@ -83,18 +114,7 @@ export function MessageList({ snapshot }: { snapshot: Snapshot }) {
     if (atBottom.current && rows.length)
       virtuoso.current?.scrollToIndex({ index: rows.length - 1, align: "end", behavior: "auto" });
   }, [rows]);
-  if (!rows.length)
-    return (
-      <div className="empty-chat">
-        <span className="agent-mark">K</span>
-        <h2>连接到了你的 Agent</h2>
-        <p>
-          发出指令，剩下的交给 Kana。
-          <br />
-          离开 App 后，server 上的任务会继续运行。
-        </p>
-      </div>
-    );
+  if (!rows.length) return <div className="empty-chat" />;
   return (
     <div className="message-list">
       <Virtuoso
@@ -108,13 +128,28 @@ export function MessageList({ snapshot }: { snapshot: Snapshot }) {
           atBottom.current = bottom;
           setShowLatest(!bottom);
         }}
-        computeItemKey={(_index, message) => message.id}
-        itemContent={(_index, message) => <MessageRow message={message} snapshot={snapshot} />}
+        computeItemKey={(_index, row) => row.id}
+        itemContent={(_index, row) =>
+          row.kind === "message" ? (
+            <MessageRow message={row.message} snapshot={snapshot} />
+          ) : (
+            <div className="message-row transcript-activity" role="status">
+              {row.activity === "prepared" ? (
+                <IonIcon icon={checkmarkOutline} />
+              ) : (
+                <IonSpinner name="dots" />
+              )}
+              <span>{activityLabels[row.activity]}</span>
+            </div>
+          )
+        }
       />
       {showLatest && (
         <button
           type="button"
           className="latest-button"
+          aria-label="Scroll to latest"
+          title="Scroll to latest"
           onClick={() =>
             virtuoso.current?.scrollToIndex({
               index: rows.length - 1,
@@ -123,7 +158,7 @@ export function MessageList({ snapshot }: { snapshot: Snapshot }) {
             })
           }
         >
-          ↓ 回到最新
+          <IonIcon icon={arrowDownOutline} />
         </button>
       )}
     </div>

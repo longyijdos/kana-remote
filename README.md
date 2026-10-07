@@ -4,8 +4,13 @@
 
 使用 React、TypeScript、Vite、Ionic React、Capacitor 和 Bun；代码检查与格式化使用 Biome。
 首版包含连接设置、当前会话的流式聊天、Markdown / 代码高亮与复制、折叠工具详情、
-工具审批、发送 / 排队 / 停止，以及空闲时新建或恢复历史会话。
-界面使用中文，跟随系统明暗；思考正文不展示，只显示 Agent 的工作状态。
+工具审批、空闲时发送 / 运行中停止，以及空闲时新建或恢复历史会话。
+界面使用英文，跟随系统明暗；思考正文不展示。顶栏显示 Agent 状态，transcript 显示
+Working、Preparing / Prepared tools，执行后展示可展开的工具块。发送成功不弹提示。
+
+暂不提供排队或 steer 入口，运行中禁止提交新消息；输入框的发送图标切换为停止。
+审批提供 Allow once / Reject，更多菜单包含 Always trust this command（仅 shell）和
+Auto-approve this session（强制审批的工具除外，切换会话后恢复）。
 
 地址和 token 通过 Capacitor Preferences 保存到本机（明文），重开自动连接。
 断线、浏览器重新可见和 Android 回到前台时，重新订阅事件流，用首帧完整快照同步状态。

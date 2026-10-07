@@ -61,6 +61,7 @@ export interface ToolState {
   result?: unknown;
   is_error?: boolean;
   paused?: boolean;
+  canceled?: boolean;
 }
 
 export interface PendingInput {
@@ -74,6 +75,8 @@ export interface InputQueue {
   pending: PendingInput[];
   scheduled: { id: string; content: string; dueAt: string }[];
 }
+
+export type ApprovalDecision = "allow" | "reject" | "always" | "never";
 
 export interface Approval {
   id: string;

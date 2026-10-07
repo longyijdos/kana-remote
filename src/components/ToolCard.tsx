@@ -29,7 +29,7 @@ function summarize(args: unknown): string {
       if (typeof fields[field] === "string") return fields[field];
     }
   }
-  return "查看参数与输出";
+  return "";
 }
 
 export function Images({ images }: { images?: MessageImage[] }) {
@@ -42,7 +42,7 @@ export function Images({ images }: { images?: MessageImage[] }) {
           src={`data:${image.mimeType};base64,${image.data}`}
           width={image.width}
           height={image.height}
-          alt={`附件 ${index + 1}`}
+          alt={`Attachment ${index + 1}`}
           loading="lazy"
         />
       ))}
@@ -64,23 +64,33 @@ export function ToolCard({
   hostedStatus?: "in_progress" | "completed" | "canceled";
 }) {
   const [expanded, setExpanded] = useState(false);
+  const payload =
+    result?.result ?? (state?.result as { result?: unknown } | undefined)?.result ?? state?.result;
+  const cancellation = payload as { canceled?: boolean; status?: string; reason?: string } | null;
+  const canceled =
+    state?.canceled ||
+    hostedStatus === "canceled" ||
+    cancellation?.canceled === true ||
+    (cancellation?.status === "canceled" && cancellation.reason === "run_aborted");
   const failed = state?.is_error || result?.isError || hostedStatus === "canceled";
   const completed =
     Boolean(result) || state?.status === "completed" || hostedStatus === "completed";
-  const running = state?.status === "running" || hostedStatus === "in_progress";
-  const label = failed
-    ? "执行失败"
-    : state?.paused
-      ? "已暂停"
-      : completed
-        ? "已完成"
-        : running
-          ? "执行中"
-          : "待执行";
+  const running = !canceled && (state?.status === "running" || hostedStatus === "in_progress");
+  const label = canceled
+    ? "Canceled"
+    : failed
+      ? "Failed"
+      : state?.paused
+        ? "Paused"
+        : completed
+          ? "Completed"
+          : running
+            ? "Running"
+            : "Prepared";
   const output = result?.content ?? formatValue(state?.result ?? state?.partial_result);
   const details = formatValue(args ?? state?.arguments);
   return (
-    <div className={`tool-card ${failed ? "tool-failed" : ""}`}>
+    <div className={`tool-card ${failed && !canceled ? "tool-failed" : ""}`}>
       <button
         type="button"
         className="tool-summary"
@@ -90,7 +100,11 @@ export function ToolCard({
         <span className={`tool-icon ${running && !state?.paused ? "tool-active" : ""}`}>
           <IonIcon
             icon={
-              failed ? closeCircleOutline : completed ? checkmarkCircleOutline : terminalOutline
+              canceled || failed
+                ? closeCircleOutline
+                : completed
+                  ? checkmarkCircleOutline
+                  : terminalOutline
             }
           />
         </span>
@@ -108,7 +122,7 @@ export function ToolCard({
           {details && (
             <div>
               <div className="detail-label">
-                <span>参数</span>
+                <span>Arguments</span>
                 <CopyButton value={details} />
               </div>
               <pre>{details}</pre>
@@ -118,9 +132,9 @@ export function ToolCard({
             <div>
               <div className="detail-label">
                 <span>
-                  输出
+                  Output
                   {result?.durationMs !== undefined
-                    ? ` · ${(result.durationMs / 1_000).toFixed(1)} 秒`
+                    ? ` · ${(result.durationMs / 1_000).toFixed(1)}s`
                     : ""}
                 </span>
                 <CopyButton value={output} />
@@ -128,10 +142,8 @@ export function ToolCard({
               <pre>{output}</pre>
             </div>
           )}
-          {!output && <p className="muted">{running ? "等待工具返回结果…" : "暂无输出"}</p>}
-          {result?.artifact && (
-            <p className="artifact-path">完整输出保存在 server：{result.artifact.locator}</p>
-          )}
+          {!output && <p className="muted">{running ? "Running…" : "No output"}</p>}
+          {result?.artifact && <p className="artifact-path">Artifact: {result.artifact.locator}</p>}
           <Images images={result?.images} />
         </div>
       )}
