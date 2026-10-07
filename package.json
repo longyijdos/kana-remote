@@ -1,0 +1,43 @@
+{
+  "name": "kana-client",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "bun@1.4.2",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "check": "biome check .",
+    "test": "bun test",
+    "format": "biome format --write .",
+    "preview": "vite preview",
+    "android:sync": "bun run build && cap sync android",
+    "android:apk": "bun run android:sync && ./android/gradlew -p android assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/preferences": "^8.0.1",
+    "@ionic/react": "9.0.6",
+    "@microsoft/fetch-event-source": "^2.0.1",
+    "@tanstack/react-query": "^5.104.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-markdown": "^10.1.0",
+    "react-virtuoso": "^4.18.16",
+    "remark-gfm": "^4.0.1",
+    "shiki": "^4.5.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@capacitor/cli": "8.5.2",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
+  }
+}
