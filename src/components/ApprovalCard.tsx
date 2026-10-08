@@ -6,6 +6,7 @@ import {
   ellipsisHorizontal,
   shieldCheckmarkOutline,
 } from "ionicons/icons";
+import { useIsPresent } from "motion/react";
 import { useState } from "react";
 import type { Approval, ApprovalDecision } from "../api/types";
 import { currentApi, handleActionError } from "../state/connection";
@@ -13,6 +14,7 @@ import { formatValue } from "./ToolCard";
 import { Button, IconButton, Spinner } from "./ui";
 
 export function ApprovalCard({ approval, disabled }: { approval: Approval; disabled: boolean }) {
+  const present = useIsPresent();
   const [menuEvent, setMenuEvent] = useState<Event>();
   const decision = useMutation({
     mutationFn: (value: ApprovalDecision) => {
@@ -21,7 +23,7 @@ export function ApprovalCard({ approval, disabled }: { approval: Approval; disab
     },
     onError: handleActionError,
   });
-  const unavailable = disabled || decision.isPending;
+  const unavailable = !present || disabled || decision.isPending;
   function choose(value: ApprovalDecision) {
     setMenuEvent(undefined);
     decision.mutate(value);

@@ -5,6 +5,7 @@ import {
   closeCircleOutline,
   terminalOutline,
 } from "ionicons/icons";
+import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import type { MessageImage, ToolResultMessage, ToolState } from "../api/types";
 import { CopyButton } from "./CopyButton";
@@ -128,52 +129,62 @@ export function ToolCard({
           )}
         </span>
         <IonIcon
-          className={`shrink-0 text-sm text-muted-foreground ${expanded ? "rotate-180" : ""}`}
+          className={`shrink-0 text-sm text-muted-foreground transition-transform duration-[180ms] ease-out motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}
           icon={chevronDownOutline}
         />
       </button>
-      {expanded && (
-        <div className="space-y-4 border-t border-solid border-border p-4">
-          {details && (
-            <div>
-              <div className="mb-1 flex items-center justify-between text-sm text-muted-foreground">
-                <span>Arguments</span>
-                <CopyButton value={details} />
-              </div>
-              <pre className="m-0 max-h-80 overflow-auto whitespace-pre-wrap break-words font-mono text-sm leading-6 select-text">
-                {details}
-              </pre>
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="details"
+            className="overflow-hidden"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+          >
+            <div className="space-y-4 border-t border-solid border-border p-4">
+              {details && (
+                <div>
+                  <div className="mb-1 flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Arguments</span>
+                    <CopyButton value={details} />
+                  </div>
+                  <pre className="m-0 max-h-80 overflow-auto whitespace-pre-wrap break-words font-mono text-sm leading-6 select-text">
+                    {details}
+                  </pre>
+                </div>
+              )}
+              {output && (
+                <div>
+                  <div className="mb-1 flex items-center justify-between text-sm text-muted-foreground">
+                    <span>
+                      Output
+                      {result?.durationMs !== undefined
+                        ? ` · ${(result.durationMs / 1_000).toFixed(1)}s`
+                        : ""}
+                    </span>
+                    <CopyButton value={output} />
+                  </div>
+                  <pre className="m-0 max-h-80 overflow-auto whitespace-pre-wrap break-words font-mono text-sm leading-6 select-text">
+                    {output}
+                  </pre>
+                </div>
+              )}
+              {!output && (
+                <p className="m-0 text-sm text-muted-foreground">
+                  {running ? "Running…" : "No output"}
+                </p>
+              )}
+              {result?.artifact && (
+                <p className="m-0 break-all text-sm text-muted-foreground">
+                  Artifact: {result.artifact.locator}
+                </p>
+              )}
+              <Images images={result?.images} />
             </div>
-          )}
-          {output && (
-            <div>
-              <div className="mb-1 flex items-center justify-between text-sm text-muted-foreground">
-                <span>
-                  Output
-                  {result?.durationMs !== undefined
-                    ? ` · ${(result.durationMs / 1_000).toFixed(1)}s`
-                    : ""}
-                </span>
-                <CopyButton value={output} />
-              </div>
-              <pre className="m-0 max-h-80 overflow-auto whitespace-pre-wrap break-words font-mono text-sm leading-6 select-text">
-                {output}
-              </pre>
-            </div>
-          )}
-          {!output && (
-            <p className="m-0 text-sm text-muted-foreground">
-              {running ? "Running…" : "No output"}
-            </p>
-          )}
-          {result?.artifact && (
-            <p className="m-0 break-all text-sm text-muted-foreground">
-              Artifact: {result.artifact.locator}
-            </p>
-          )}
-          <Images images={result?.images} />
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -16,6 +16,7 @@ import {
   syncOutline,
   terminalOutline,
 } from "ionicons/icons";
+import { AnimatePresence, motion } from "motion/react";
 import { IconButton } from "./ui";
 
 const statusIcons: Record<string, string> = {
@@ -55,16 +56,26 @@ export function Toolbar({
         <span className="brand-name">ana</span>
       </div>
       <div
-        className="flex max-w-32 items-center gap-2 text-[15px] font-medium leading-6 text-foreground"
+        className="grid max-w-32 items-center text-[15px] font-medium leading-6 text-foreground"
         role="status"
         title={status}
       >
-        <IonIcon
-          icon={statusIcons[status]}
-          className="size-4 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <span className="truncate">{status}</span>
+        <AnimatePresence initial={false}>
+          <motion.span
+            key={status}
+            className="col-start-1 row-start-1 flex min-w-0 items-center justify-center gap-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <IonIcon
+              icon={statusIcons[status]}
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <span className="truncate">{status}</span>
+          </motion.span>
+        </AnimatePresence>
       </div>
       <div className="flex justify-self-end">
         <IconButton

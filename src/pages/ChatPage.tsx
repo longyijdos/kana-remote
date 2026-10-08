@@ -1,6 +1,7 @@
 import { IonContent, IonHeader, IonModal, IonPage } from "@ionic/react";
 import { useIsMutating, useMutation } from "@tanstack/react-query";
 import { refreshOutline, settingsOutline } from "ionicons/icons";
+import { AnimatePresence, motion } from "motion/react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { ApprovalCard } from "../components/ApprovalCard";
 import { Composer } from "../components/Composer";
@@ -141,13 +142,23 @@ export function ChatPage() {
           className="composer-overlay absolute inset-x-0 bottom-0 z-20 px-3 sm:px-6"
         >
           <div className="mx-auto w-full max-w-3xl">
-            {approvals.length > 0 && (
-              <div className="mb-3 flex max-h-[35vh] flex-col gap-3 overflow-y-auto">
+            <div className="max-h-[35vh] overflow-y-auto">
+              <AnimatePresence initial={false}>
                 {approvals.map((approval) => (
-                  <ApprovalCard key={approval.id} approval={approval} disabled={!online || busy} />
+                  <motion.div
+                    key={approval.id}
+                    className="overflow-hidden"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                  >
+                    <div className="pb-3">
+                      <ApprovalCard approval={approval} disabled={!online || busy} />
+                    </div>
+                  </motion.div>
                 ))}
-              </div>
-            )}
+              </AnimatePresence>
+            </div>
             {snapshot?.run?.error && (
               <p
                 className="surface-card run-error mb-3 max-h-24 overflow-y-auto px-4 py-3"

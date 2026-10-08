@@ -1,5 +1,6 @@
 import { arrowUpOutline, stopOutline } from "ionicons/icons";
-import { useLayoutEffect, useRef } from "react";
+import { motion } from "motion/react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { IconButton } from "./ui";
 
 export function Composer({
@@ -22,12 +23,16 @@ export function Composer({
   canStop: boolean;
 }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const [height, setHeight] = useState(40);
   // biome-ignore lint/correctness/useExhaustiveDependencies: Measure the DOM after each controlled text change.
   useLayoutEffect(() => {
     const element = textarea.current;
     if (!element) return;
+    const previousHeight = element.style.height;
     element.style.height = "40px";
-    element.style.height = `${Math.min(Math.max(element.scrollHeight, 40), 112)}px`;
+    const nextHeight = Math.min(Math.max(element.scrollHeight, 40), 112);
+    element.style.height = previousHeight;
+    setHeight(nextHeight);
   }, [value]);
 
   return (
@@ -41,8 +46,10 @@ export function Composer({
         if (canSend) onSend();
       }}
     >
-      <textarea
+      <motion.textarea
         ref={textarea}
+        initial={false}
+        animate={{ height }}
         className="composer-textarea block min-w-0 flex-1 resize-none border-0 bg-transparent px-0 py-2 text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground"
         aria-label="Message"
         placeholder="Talk to Kana"

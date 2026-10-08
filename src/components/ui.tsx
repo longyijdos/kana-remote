@@ -1,4 +1,5 @@
 import { IonIcon } from "@ionic/react";
+import { AnimatePresence, motion } from "motion/react";
 import type { ButtonHTMLAttributes } from "react";
 
 export function Spinner({ className = "size-4" }: { className?: string }) {
@@ -36,7 +37,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={`inline-flex items-center justify-center gap-2 border border-solid font-medium transition-colors disabled:pointer-events-none disabled:opacity-40 ${
+      className={`inline-flex items-center justify-center gap-2 border border-solid font-medium transition-[color,background-color,border-color,opacity,scale] duration-[180ms] ease-out active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100 ${
         iconOnly ? "size-10 shrink-0 rounded-full p-0" : "min-h-10 rounded-xl px-4 py-2.5 text-sm"
       } ${variants[variant]} ${className}`}
       {...props}
@@ -56,7 +57,19 @@ export function IconButton({
 }) {
   return (
     <Button variant="ghost" iconOnly aria-label={label} title={label} {...props}>
-      {busy ? <Spinner /> : <IonIcon className="size-5" icon={icon} aria-hidden="true" />}
+      <span className="grid size-5 place-items-center" aria-hidden="true">
+        <AnimatePresence initial={false}>
+          <motion.span
+            key={busy ? "busy" : icon}
+            className="col-start-1 row-start-1 flex size-5 items-center justify-center"
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.85 }}
+          >
+            {busy ? <Spinner /> : <IonIcon className="size-5" icon={icon} aria-hidden="true" />}
+          </motion.span>
+        </AnimatePresence>
+      </span>
     </Button>
   );
 }

@@ -1,5 +1,6 @@
 import { IonIcon } from "@ionic/react";
 import { arrowDownOutline, checkmarkOutline } from "ionicons/icons";
+import { AnimatePresence, motion } from "motion/react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import type { AssistantMessage, Snapshot, UserMessage } from "../api/types";
@@ -9,9 +10,10 @@ import { Markdown } from "./Markdown";
 import { Images, ToolCard } from "./ToolCard";
 import { IconButton, Spinner } from "./ui";
 
-type TranscriptRow =
-  | { kind: "message"; id: string; message: UserMessage | AssistantMessage }
-  | { kind: "activity"; id: string; activity: TranscriptActivity };
+type TranscriptContext = {
+  bottomInset: number;
+  activity: TranscriptActivity | null;
+};
 const activityLabels = {
   working: "Working…",
   preparing: "Preparing tools…",
@@ -19,10 +21,47 @@ const activityLabels = {
   compacting: "Compacting context…",
 };
 
-function TranscriptSpacer({ context }: { context: number }) {
-  return <div style={{ height: context }} aria-hidden="true" />;
+function TranscriptFooter({ context }: { context: TranscriptContext }) {
+  return (
+    <>
+      <AnimatePresence initial={false}>
+        {context.activity && (
+          <motion.div
+            key="activity"
+            className="overflow-hidden"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+          >
+            <div className="mx-auto w-full max-w-3xl px-5 py-3 text-sm text-muted-foreground sm:px-6">
+              <div className="grid min-h-6">
+                <AnimatePresence initial={false}>
+                  <motion.div
+                    key={context.activity}
+                    className="col-start-1 row-start-1 flex items-center gap-2.5"
+                    role="status"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    {context.activity === "prepared" ? (
+                      <IonIcon icon={checkmarkOutline} />
+                    ) : (
+                      <Spinner />
+                    )}
+                    <span>{activityLabels[context.activity]}</span>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div style={{ height: context.bottomInset }} aria-hidden="true" />
+    </>
+  );
 }
-const listComponents = { Footer: TranscriptSpacer };
+const listComponents = { Footer: TranscriptFooter };
 
 const MessageRow = memo(function MessageRow({
   message,
@@ -105,80 +144,68 @@ export function MessageList({
   activity: TranscriptActivity | null;
   bottomInset: number;
 }) {
-  const rows = useMemo<TranscriptRow[]>(() => {
-    const messages: TranscriptRow[] = visibleMessages(snapshot).map((message) => ({
-      kind: "message",
-      id: message.id,
-      message,
-    }));
-    if (activity)
-      messages.push({
-        kind: "activity",
-        id: `activity-${snapshot.run?.id ?? "pending"}`,
-        activity,
-      });
-    return messages;
-  }, [snapshot, activity]);
+  const messages = useMemo(() => visibleMessages(snapshot), [snapshot]);
+  const context = useMemo(() => ({ bottomInset, activity }), [bottomInset, activity]);
   const virtuoso = useRef<VirtuosoHandle>(null);
   const atBottom = useRef(true);
   const [showLatest, setShowLatest] = useState(false);
   useEffect(() => {
-    if (atBottom.current && rows.length)
+    if (atBottom.current && messages.length)
       virtuoso.current?.scrollToIndex({
-        index: rows.length - 1,
+        index: messages.length - 1,
         align: "end",
-        offset: bottomInset,
+        offset: context.bottomInset,
         behavior: "auto",
       });
-  }, [rows, bottomInset]);
-  if (!rows.length) return <div className="flex-1" />;
+  }, [messages, context]);
   return (
     <div className="relative min-h-0 flex-1">
       <Virtuoso
         ref={virtuoso}
-        data={rows}
-        context={bottomInset}
+        data={messages}
+        context={context}
         components={listComponents}
         className="ion-content-scroll-host h-full overflow-x-hidden"
-        initialTopMostItemIndex={{ index: rows.length - 1, align: "end", offset: bottomInset }}
+        initialTopMostItemIndex={
+          messages.length
+            ? { index: messages.length - 1, align: "end", offset: bottomInset }
+            : undefined
+        }
         followOutput="auto"
         atBottomThreshold={80}
         atBottomStateChange={(bottom) => {
           atBottom.current = bottom;
           setShowLatest(!bottom);
         }}
-        computeItemKey={(_index, row) => row.id}
-        itemContent={(_index, row) =>
-          row.kind === "message" ? (
-            <MessageRow message={row.message} snapshot={snapshot} />
-          ) : (
-            <div
-              className="mx-auto flex w-full max-w-3xl items-center gap-2.5 px-5 py-3 text-sm text-muted-foreground sm:px-6"
-              role="status"
-            >
-              {row.activity === "prepared" ? <IonIcon icon={checkmarkOutline} /> : <Spinner />}
-              <span>{activityLabels[row.activity]}</span>
-            </div>
-          )
-        }
+        computeItemKey={(_index, message) => message.id}
+        itemContent={(_index, message) => <MessageRow message={message} snapshot={snapshot} />}
       />
-      {showLatest && (
-        <IconButton
-          variant="secondary"
-          icon={arrowDownOutline}
-          label="Scroll to latest"
-          className="absolute left-1/2 z-10 -translate-x-1/2"
-          style={{ bottom: bottomInset + 12 }}
-          onClick={() =>
-            virtuoso.current?.scrollToIndex({
-              index: rows.length - 1,
-              align: "end",
-              offset: bottomInset,
-              behavior: "smooth",
-            })
-          }
-        />
-      )}
+      <AnimatePresence initial={false}>
+        {showLatest && (
+          <motion.div
+            key="latest"
+            className="absolute left-1/2 z-10 -translate-x-1/2"
+            style={{ bottom: bottomInset + 12 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <IconButton
+              variant="secondary"
+              icon={arrowDownOutline}
+              label="Scroll to latest"
+              onClick={() =>
+                virtuoso.current?.scrollToIndex({
+                  index: messages.length - 1,
+                  align: "end",
+                  offset: bottomInset,
+                  behavior: "smooth",
+                })
+              }
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

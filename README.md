@@ -15,6 +15,9 @@ Markdown 使用 Streamdown，搭配 code / cjk 插件处理流式内容、Shiki 
 输入卡片悬浮在 transcript 上，消息按输入区实际高度留出空间；发送、停止与回到底部使用圆形按钮。
 页面布局和视觉组件使用 Tailwind 与项目自己的组件；Ionic 提供页面生命周期、safe area 和弹层。
 关闭 Tailwind 全局 Preflight，将 Ionic normalize / typography 放进基础样式层，统一由工具类控制视觉。
+交互动效使用 Motion，统一为 180ms：工具展开收起、审批与工作状态出现退出、
+回到底部按钮、状态与操作图标切换，以及输入框高度变化。按钮按压反馈使用 CSS；
+系统开启减少动态效果时取消过渡。流式正文直接显示，设置与会话弹窗沿用 Ionic 的动画。
 
 暂不提供排队或 steer 入口，运行中禁止提交新消息；输入框的发送图标切换为停止。
 审批提供 Allow once / Reject，更多菜单包含 Always trust this command（仅 shell）和
