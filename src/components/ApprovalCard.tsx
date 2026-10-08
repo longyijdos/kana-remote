@@ -1,12 +1,4 @@
-import {
-  IonButton,
-  IonIcon,
-  IonItem,
-  IonLabel,
-  IonList,
-  IonPopover,
-  IonSpinner,
-} from "@ionic/react";
+import { IonIcon, IonPopover } from "@ionic/react";
 import { useMutation } from "@tanstack/react-query";
 import {
   checkmarkOutline,
@@ -18,6 +10,7 @@ import { useState } from "react";
 import type { Approval, ApprovalDecision } from "../api/types";
 import { currentApi, handleActionError } from "../state/connection";
 import { formatValue } from "./ToolCard";
+import { Button, IconButton, Spinner } from "./ui";
 
 export function ApprovalCard({ approval, disabled }: { approval: Approval; disabled: boolean }) {
   const [menuEvent, setMenuEvent] = useState<Event>();
@@ -34,48 +27,41 @@ export function ApprovalCard({ approval, disabled }: { approval: Approval; disab
     decision.mutate(value);
   }
   return (
-    <section className="approval-card" aria-label="Tool approval">
-      <div className="approval-title">
-        <IonIcon icon={shieldCheckmarkOutline} />
-        <strong>Approval</strong>
-        <span>{approval.agent.label}</span>
+    <section className="surface-card p-4" aria-label="Tool approval">
+      <div className="flex items-center gap-2.5">
+        <IonIcon className="size-5" icon={shieldCheckmarkOutline} aria-hidden="true" />
+        <strong className="text-base font-medium">Approval</strong>
+        <span className="ml-auto text-sm text-muted-foreground">{approval.agent.label}</span>
       </div>
-      <p className="approval-tool">{approval.tool_call.name}</p>
-      <pre>{formatValue(approval.tool_call.arguments)}</pre>
-      <div className="approval-buttons">
-        <IonButton
-          className="approval-more"
-          size="small"
-          fill="clear"
-          color="medium"
-          aria-label="More approval options"
-          title="More approval options"
+      <p className="mb-2 mt-4 font-mono text-sm">{approval.tool_call.name}</p>
+      <pre className="m-0 max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono text-sm leading-6 select-text">
+        {formatValue(approval.tool_call.arguments)}
+      </pre>
+      <div className="mt-4 flex items-center gap-2">
+        <IconButton
+          className="mr-auto"
+          icon={ellipsisHorizontal}
+          label="More approval options"
           disabled={unavailable}
           onClick={(event) => setMenuEvent(event.nativeEvent)}
-        >
-          <IonIcon slot="icon-only" icon={ellipsisHorizontal} />
-        </IonButton>
-        <IonButton
-          size="small"
-          fill="clear"
-          color="medium"
+        />
+        <Button
+          variant="secondary"
           aria-label="Reject and stop"
           disabled={unavailable}
           onClick={() => choose("reject")}
         >
-          <IonIcon slot="start" icon={closeOutline} />
+          <IonIcon className="size-4" icon={closeOutline} aria-hidden="true" />
           Reject
-        </IonButton>
-        <IonButton size="small" disabled={unavailable} onClick={() => choose("allow")}>
+        </Button>
+        <Button disabled={unavailable} onClick={() => choose("allow")}>
           {decision.isPending ? (
-            <IonSpinner name="crescent" />
+            <Spinner />
           ) : (
-            <>
-              <IonIcon slot="start" icon={checkmarkOutline} />
-              Allow once
-            </>
+            <IonIcon className="size-4" icon={checkmarkOutline} aria-hidden="true" />
           )}
-        </IonButton>
+          Allow once
+        </Button>
       </div>
       <IonPopover
         isOpen={Boolean(menuEvent)}
@@ -83,16 +69,26 @@ export function ApprovalCard({ approval, disabled }: { approval: Approval; disab
         onDidDismiss={() => setMenuEvent(undefined)}
         className="approval-menu"
       >
-        <IonList lines="none">
+        <div className="flex flex-col p-2">
           {approval.allow_always && (
-            <IonItem button detail={false} disabled={unavailable} onClick={() => choose("always")}>
-              <IonLabel>Always trust this command</IonLabel>
-            </IonItem>
+            <button
+              type="button"
+              className="rounded-xl bg-transparent px-3 py-3 text-left text-sm text-foreground hover:bg-muted/50"
+              disabled={unavailable}
+              onClick={() => choose("always")}
+            >
+              Always trust this command
+            </button>
           )}
-          <IonItem button detail={false} disabled={unavailable} onClick={() => choose("never")}>
-            <IonLabel>Auto-approve this session</IonLabel>
-          </IonItem>
-        </IonList>
+          <button
+            type="button"
+            className="rounded-xl bg-transparent px-3 py-3 text-left text-sm text-foreground hover:bg-muted/50"
+            disabled={unavailable}
+            onClick={() => choose("never")}
+          >
+            Auto-approve this session
+          </button>
+        </div>
       </IonPopover>
     </section>
   );

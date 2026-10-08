@@ -2,11 +2,19 @@
 
 连接远程常驻 Kana Agent 的 Android / Web 客户端。一个 server 对应一个活跃会话。
 
-使用 React、TypeScript、Vite、Ionic React、Capacitor 和 Bun；代码检查与格式化使用 Biome。
+使用 React、TypeScript、Vite、Ionic React、Tailwind CSS、Capacitor 和 Bun；代码检查与格式化使用 Biome。
 首版包含连接设置、当前会话的流式聊天、Markdown / 代码高亮与复制、折叠工具详情、
 工具审批、空闲时发送 / 运行中停止，以及空闲时新建或恢复历史会话。
 界面使用英文，跟随系统明暗；思考正文不展示。顶栏显示 Agent 状态，transcript 显示
 Working、Preparing / Prepared tools，执行后展示可展开的工具块。发送成功不弹提示。
+
+Markdown 使用 Streamdown，搭配 code / cjk 插件处理流式内容、Shiki 高亮和中文标点。
+保留代码复制，关闭下载、行号和逐字动画；暂未接入数学公式与 Mermaid。
+界面采用黑白灰配色，AI 消息直接展示正文，代码与工具使用同一套卡片样式。
+输入框最多自动展开 4 行，超出后内部滚动。
+输入卡片悬浮在 transcript 上，消息按输入区实际高度留出空间；发送、停止与回到底部使用圆形按钮。
+页面布局和视觉组件使用 Tailwind 与项目自己的组件；Ionic 提供页面生命周期、safe area 和弹层。
+关闭 Tailwind 全局 Preflight，将 Ionic normalize / typography 放进基础样式层，统一由工具类控制视觉。
 
 暂不提供排队或 steer 入口，运行中禁止提交新消息；输入框的发送图标切换为停止。
 审批提供 Allow once / Reject，更多菜单包含 Always trust this command（仅 shell）和

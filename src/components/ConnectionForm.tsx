@@ -1,9 +1,9 @@
 import { Capacitor } from "@capacitor/core";
-import { IonButton, IonInput, IonSpinner } from "@ionic/react";
 import { useState } from "react";
 import { errorMessage, normalizeSettings } from "../api/client";
 import { connect, disconnect } from "../state/connection";
 import { useClientStore } from "../state/store";
+import { Button, Spinner } from "./ui";
 
 export function ConnectionForm({
   onConnected,
@@ -21,7 +21,7 @@ export function ConnectionForm({
 
   return (
     <form
-      className="connection-form"
+      className="flex flex-col gap-5"
       onSubmit={async (event) => {
         event.preventDefault();
         setError(null);
@@ -39,44 +39,45 @@ export function ConnectionForm({
         }
       }}
     >
-      <IonInput
-        label="Server URL"
-        labelPlacement="stacked"
-        fill="outline"
-        type="url"
-        inputmode="url"
-        autocomplete="url"
-        placeholder="https://agent.example.com"
-        value={address}
-        disabled={busy}
-        onIonInput={(event) => setAddress(event.detail.value ?? "")}
-        required
-      />
-      <IonInput
-        label="Token"
-        labelPlacement="stacked"
-        fill="outline"
-        type="password"
-        autocomplete="off"
-        placeholder="KANA_SERVER_TOKEN"
-        value={token}
-        disabled={busy}
-        onIonInput={(event) => setToken(event.detail.value ?? "")}
-        required
-      />
+      <label className="flex flex-col gap-2 text-sm font-medium">
+        Server URL
+        <input
+          className="field-input"
+          type="url"
+          inputMode="url"
+          autoComplete="url"
+          placeholder="https://agent.example.com"
+          value={address}
+          disabled={busy}
+          onChange={(event) => setAddress(event.target.value)}
+          required
+        />
+      </label>
+      <label className="flex flex-col gap-2 text-sm font-medium">
+        Token
+        <input
+          className="field-input"
+          type="password"
+          autoComplete="off"
+          placeholder="KANA_SERVER_TOKEN"
+          value={token}
+          disabled={busy}
+          onChange={(event) => setToken(event.target.value)}
+          required
+        />
+      </label>
       {error && (
-        <p className="form-error" role="alert">
+        <p className="form-error m-0" role="alert">
           {error}
         </p>
       )}
-      <IonButton expand="block" type="submit" disabled={busy || !address.trim() || !token.trim()}>
-        {busy ? <IonSpinner name="crescent" /> : "Connect"}
-      </IonButton>
+      <Button type="submit" className="w-full" disabled={busy || !address.trim() || !token.trim()}>
+        {busy ? <Spinner /> : "Connect"}
+      </Button>
       {onDisconnected && status !== "disconnected" && (
-        <IonButton
-          expand="block"
-          fill="clear"
-          color="medium"
+        <Button
+          variant="secondary"
+          className="w-full"
           disabled={busy}
           onClick={() => {
             disconnect();
@@ -84,7 +85,7 @@ export function ConnectionForm({
           }}
         >
           Disconnect
-        </IonButton>
+        </Button>
       )}
     </form>
   );

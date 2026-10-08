@@ -1,6 +1,7 @@
-import { IonApp, IonSpinner, IonToast } from "@ionic/react";
+import { IonApp, IonToast } from "@ionic/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { Spinner } from "./components/ui";
 import { ChatPage } from "./pages/ChatPage";
 import { ConnectionPage } from "./pages/ConnectionPage";
 import { installConnectionLifecycle, queryClient } from "./state/connection";
@@ -16,8 +17,8 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <IonApp>
         {!hydrated ? (
-          <div className="startup-loading">
-            <IonSpinner name="crescent" />
+          <div className="grid h-full place-items-center">
+            <Spinner className="size-5" />
           </div>
         ) : !settings || status === "disconnected" ? (
           <ConnectionPage />

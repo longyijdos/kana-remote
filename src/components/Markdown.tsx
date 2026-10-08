@@ -1,39 +1,48 @@
-import { isValidElement, memo } from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { CodeBlock } from "./CodeBlock";
+import { cjk } from "@streamdown/cjk";
+import { code } from "@streamdown/code";
+import { memo } from "react";
+import { type Components, type ControlsConfig, Streamdown } from "streamdown";
+import { CodeCard } from "./CodeCard";
 
+const plugins = { code, cjk };
+const controls: ControlsConfig = {
+  code: { copy: true, download: false },
+  table: false,
+  image: false,
+  mermaid: false,
+};
 const components: Components = {
   pre({ children }) {
-    if (isValidElement<{ children?: string; className?: string }>(children)) {
-      const code = String(children.props.children ?? "").replace(/\n$/, "");
-      const language = /language-([^\s]+)/.exec(children.props.className ?? "")?.[1] ?? "";
-      return <CodeBlock code={code} language={language} />;
-    }
-    return <pre>{children}</pre>;
+    return <CodeCard>{children}</CodeCard>;
   },
   a({ children, href }) {
+    if (href === "streamdown:incomplete-link") return <span>{children}</span>;
     return (
       <a href={href} target="_blank" rel="noreferrer">
         {children}
       </a>
     );
   },
-  table({ children }) {
-    return (
-      <div className="table-scroll">
-        <table>{children}</table>
-      </div>
-    );
-  },
 };
 
-export const Markdown = memo(function Markdown({ text }: { text: string }) {
+export const Markdown = memo(function Markdown({
+  text,
+  streaming = false,
+}: {
+  text: string;
+  streaming?: boolean;
+}) {
   return (
-    <div className="markdown">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {text}
-      </ReactMarkdown>
-    </div>
+    <Streamdown
+      className="markdown min-w-0"
+      mode={streaming ? "streaming" : "static"}
+      isAnimating={streaming}
+      plugins={plugins}
+      components={components}
+      controls={controls}
+      lineNumbers={false}
+    >
+      {text}
+    </Streamdown>
   );
 });

@@ -1,16 +1,23 @@
-import { IonIcon } from "@ionic/react";
 import { checkmarkOutline, copyOutline } from "ionicons/icons";
 import { useState } from "react";
 import { useClientStore } from "../state/store";
+import { IconButton } from "./ui";
 
-export function CopyButton({ value, label = "Copy" }: { value: string; label?: string }) {
+export function CopyButton({
+  value,
+  label = "Copy",
+  disabled = false,
+}: {
+  value: string;
+  label?: string;
+  disabled?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
   return (
-    <button
-      type="button"
-      className="copy-button"
-      aria-label={copied ? "Copied" : label}
-      title={copied ? "Copied" : label}
+    <IconButton
+      icon={copied ? checkmarkOutline : copyOutline}
+      label={copied ? "Copied" : label}
+      disabled={disabled}
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(value);
@@ -20,8 +27,6 @@ export function CopyButton({ value, label = "Copy" }: { value: string; label?: s
           useClientStore.getState().notify("Copy failed. Select the text to copy it manually.");
         }
       }}
-    >
-      <IonIcon icon={copied ? checkmarkOutline : copyOutline} />
-    </button>
+    />
   );
 }

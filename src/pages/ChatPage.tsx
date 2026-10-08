@@ -1,31 +1,14 @@
-import {
-  IonButton,
-  IonButtons,
-  IonContent,
-  IonFooter,
-  IonHeader,
-  IonIcon,
-  IonModal,
-  IonPage,
-  IonSpinner,
-  IonTextarea,
-  IonTitle,
-  IonToolbar,
-} from "@ionic/react";
+import { IonContent, IonHeader, IonModal, IonPage } from "@ionic/react";
 import { useIsMutating, useMutation } from "@tanstack/react-query";
-import {
-  arrowUpOutline,
-  closeOutline,
-  layersOutline,
-  refreshOutline,
-  settingsOutline,
-  stopOutline,
-} from "ionicons/icons";
-import { useState } from "react";
+import { refreshOutline, settingsOutline } from "ionicons/icons";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ApprovalCard } from "../components/ApprovalCard";
+import { Composer } from "../components/Composer";
 import { ConnectionForm } from "../components/ConnectionForm";
 import { MessageList } from "../components/MessageList";
 import { SessionsModal } from "../components/SessionsModal";
+import { ModalHeader, Toolbar } from "../components/Toolbar";
+import { IconButton, Spinner } from "../components/ui";
 import { currentApi, currentSessionId, handleActionError, reconnect } from "../state/connection";
 import { useClientStore } from "../state/store";
 
@@ -46,6 +29,17 @@ export function ChatPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [draft, setDraft] = useState("");
+  const overlay = useRef<HTMLDivElement>(null);
+  const [bottomInset, setBottomInset] = useState(96);
+  useLayoutEffect(() => {
+    const element = overlay.current;
+    if (!element) return;
+    const update = () => setBottomInset(Math.ceil(element.getBoundingClientRect().height) + 12);
+    const observer = new ResizeObserver(update);
+    update();
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const busy = useIsMutating() > 0;
   const online = status === "connected";
   const running = snapshot?.running ?? false;
@@ -96,48 +90,26 @@ export function ChatPage() {
   return (
     <IonPage>
       <IonHeader className="app-header">
-        <IonToolbar>
-          <div className="header-layout">
-            <div className="header-brand" role="img" aria-label="Kana">
-              <span className="agent-mark small">K</span>
-              <span className="brand-name">ana</span>
-            </div>
-            <div className="header-status" role="status">
-              <span
-                className={active && online && activity !== "prepared" ? "working-dot" : "idle-dot"}
-              />
-              {statusLabel}
-            </div>
-            <IonButtons className="header-actions">
-              <IonButton
-                aria-label="Sessions"
-                title="Sessions"
-                disabled={busy}
-                onClick={() => setSessionsOpen(true)}
-              >
-                <IonIcon slot="icon-only" icon={layersOutline} />
-              </IonButton>
-              <IonButton
-                aria-label="Connection settings"
-                title="Connection settings"
-                disabled={busy}
-                onClick={() => setSettingsOpen(true)}
-              >
-                <IonIcon slot="icon-only" icon={settingsOutline} />
-              </IonButton>
-            </IonButtons>
-          </div>
-        </IonToolbar>
+        <Toolbar
+          status={statusLabel}
+          disabled={busy}
+          onSessions={() => setSessionsOpen(true)}
+          onSettings={() => setSettingsOpen(true)}
+        />
       </IonHeader>
       <IonContent scrollY={false}>
-        <div className="chat-layout">
+        <div className="relative flex h-full flex-col">
           {!online && connectionError && (
-            <div className="connection-banner" role="alert">
-              <div>{connectionError}</div>
-              <IonButton
-                size="small"
-                fill="clear"
-                aria-label={
+            <div
+              className="surface-card mx-4 mt-3 flex items-center gap-3 px-4 py-2 text-sm"
+              role="alert"
+            >
+              <div className="min-w-0 flex-1 break-words">{connectionError}</div>
+              <IconButton
+                icon={
+                  status === "unauthorized" || status === "error" ? settingsOutline : refreshOutline
+                }
+                label={
                   status === "unauthorized" || status === "error"
                     ? "Connection settings"
                     : "Reconnect"
@@ -147,16 +119,7 @@ export function ChatPage() {
                     ? setSettingsOpen(true)
                     : reconnect()
                 }
-              >
-                <IonIcon
-                  slot="icon-only"
-                  icon={
-                    status === "unauthorized" || status === "error"
-                      ? settingsOutline
-                      : refreshOutline
-                  }
-                />
-              </IonButton>
+              />
             </div>
           )}
           {snapshot ? (
@@ -164,87 +127,58 @@ export function ChatPage() {
               key={snapshot.session?.id ?? "none"}
               snapshot={snapshot}
               activity={activity ?? (send.isPending ? "working" : null)}
+              bottomInset={bottomInset}
             />
           ) : (
-            <div className="loading-chat">
-              {status !== "error" && status !== "unauthorized" && <IonSpinner name="crescent" />}
+            <div className="grid flex-1 place-items-center">
+              {status !== "error" && status !== "unauthorized" && <Spinner className="size-5" />}
             </div>
           )}
+        </div>
+        <div
+          ref={overlay}
+          slot="fixed"
+          className="composer-overlay absolute inset-x-0 bottom-0 z-20 px-3 sm:px-6"
+        >
+          <div className="mx-auto w-full max-w-3xl">
+            {approvals.length > 0 && (
+              <div className="mb-3 flex max-h-[35vh] flex-col gap-3 overflow-y-auto">
+                {approvals.map((approval) => (
+                  <ApprovalCard key={approval.id} approval={approval} disabled={!online || busy} />
+                ))}
+              </div>
+            )}
+            {snapshot?.run?.error && (
+              <p
+                className="surface-card run-error mb-3 max-h-24 overflow-y-auto px-4 py-3"
+                role="alert"
+              >
+                {snapshot.run.error.message}
+              </p>
+            )}
+            <Composer
+              value={draft}
+              onChange={setDraft}
+              onSend={() => send.mutate(draft)}
+              onStop={() => stop.mutate()}
+              active={active}
+              pending={send.isPending || stop.isPending}
+              canSend={canSend}
+              canStop={online && !busy}
+            />
+          </div>
         </div>
       </IonContent>
-      <IonFooter className="chat-footer">
-        <div className="footer-body">
-          {approvals.length > 0 && (
-            <div className="approvals-panel">
-              {approvals.map((approval) => (
-                <ApprovalCard key={approval.id} approval={approval} disabled={!online || busy} />
-              ))}
-            </div>
-          )}
-          {snapshot?.run?.error && (
-            <p className="run-error" role="alert">
-              {snapshot.run.error.message}
-            </p>
-          )}
-          <form
-            className="composer"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (canSend) send.mutate(draft);
-            }}
-          >
-            <IonTextarea
-              aria-label="Message"
-              placeholder="Message"
-              autoGrow
-              rows={1}
-              value={draft}
-              onIonInput={(event) => setDraft(event.detail.value ?? "")}
-              onKeyDown={(event) => {
-                if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && canSend) {
-                  event.preventDefault();
-                  send.mutate(draft);
-                }
-              }}
-            />
-            <IonButton
-              className="send-button"
-              size="small"
-              type={active ? "button" : "submit"}
-              color={active ? "medium" : "primary"}
-              aria-label={active ? "Stop" : "Send"}
-              title={active ? "Stop" : "Send"}
-              disabled={active ? !online || busy : !canSend}
-              onClick={() => {
-                if (active && online && !busy) stop.mutate();
-              }}
-            >
-              {send.isPending || stop.isPending ? (
-                <IonSpinner name="crescent" />
-              ) : (
-                <IonIcon slot="icon-only" icon={active ? stopOutline : arrowUpOutline} />
-              )}
-            </IonButton>
-          </form>
-        </div>
-      </IonFooter>
       <IonModal
         isOpen={settingsOpen}
         onDidDismiss={() => setSettingsOpen(false)}
         className="sheet-modal"
       >
-        <IonHeader>
-          <IonToolbar>
-            <IonTitle>Connection</IonTitle>
-            <IonButtons slot="end">
-              <IonButton aria-label="Close" onClick={() => setSettingsOpen(false)}>
-                <IonIcon slot="icon-only" icon={closeOutline} />
-              </IonButton>
-            </IonButtons>
-          </IonToolbar>
+        <IonHeader className="app-header">
+          <ModalHeader title="Connection" onClose={() => setSettingsOpen(false)} />
         </IonHeader>
         <IonContent>
-          <div className="sheet-body">
+          <div className="mx-auto max-w-xl px-6 py-6">
             <ConnectionForm
               onConnected={() => setSettingsOpen(false)}
               onDisconnected={() => setSettingsOpen(false)}

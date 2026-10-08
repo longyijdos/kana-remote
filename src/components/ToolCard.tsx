@@ -35,9 +35,10 @@ function summarize(args: unknown): string {
 export function Images({ images }: { images?: MessageImage[] }) {
   if (!images?.length) return null;
   return (
-    <div className="message-images">
+    <div className="mt-3 flex flex-wrap gap-2">
       {images.map((image, index) => (
         <img
+          className="h-auto max-h-72 max-w-full rounded-xl object-contain"
           key={image.data}
           src={`data:${image.mimeType};base64,${image.data}`}
           width={image.width}
@@ -89,15 +90,24 @@ export function ToolCard({
             : "Prepared";
   const output = result?.content ?? formatValue(state?.result ?? state?.partial_result);
   const details = formatValue(args ?? state?.arguments);
+  const preview = summarize(args ?? state?.arguments);
   return (
-    <div className={`tool-card ${failed && !canceled ? "tool-failed" : ""}`}>
+    <div className="surface-card my-3 overflow-hidden">
       <button
         type="button"
-        className="tool-summary"
+        className="flex min-h-14 w-full items-center gap-3 border-0 bg-transparent px-4 py-3 text-left text-foreground"
         aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
       >
-        <span className={`tool-icon ${running && !state?.paused ? "tool-active" : ""}`}>
+        <span
+          className={`flex shrink-0 text-lg ${
+            failed && !canceled
+              ? "text-[var(--ion-color-danger)]"
+              : running && !state?.paused
+                ? "text-foreground"
+                : "text-muted-foreground"
+          }`}
+        >
           <IonIcon
             icon={
               canceled || failed
@@ -108,29 +118,36 @@ export function ToolCard({
             }
           />
         </span>
-        <span className="tool-heading">
-          <span className="tool-name">
-            {name}
-            <span className="tool-status">{label}</span>
+        <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">{name}</span>
+            <span className="shrink-0 text-sm text-muted-foreground">{label}</span>
           </span>
-          <span className="tool-preview">{summarize(args ?? state?.arguments)}</span>
+          {preview && (
+            <span className="truncate font-mono text-sm text-muted-foreground">{preview}</span>
+          )}
         </span>
-        <IonIcon className={expanded ? "chevron expanded" : "chevron"} icon={chevronDownOutline} />
+        <IonIcon
+          className={`shrink-0 text-sm text-muted-foreground ${expanded ? "rotate-180" : ""}`}
+          icon={chevronDownOutline}
+        />
       </button>
       {expanded && (
-        <div className="tool-details">
+        <div className="space-y-4 border-t border-solid border-border p-4">
           {details && (
             <div>
-              <div className="detail-label">
+              <div className="mb-1 flex items-center justify-between text-sm text-muted-foreground">
                 <span>Arguments</span>
                 <CopyButton value={details} />
               </div>
-              <pre>{details}</pre>
+              <pre className="m-0 max-h-80 overflow-auto whitespace-pre-wrap break-words font-mono text-sm leading-6 select-text">
+                {details}
+              </pre>
             </div>
           )}
           {output && (
             <div>
-              <div className="detail-label">
+              <div className="mb-1 flex items-center justify-between text-sm text-muted-foreground">
                 <span>
                   Output
                   {result?.durationMs !== undefined
@@ -139,11 +156,21 @@ export function ToolCard({
                 </span>
                 <CopyButton value={output} />
               </div>
-              <pre>{output}</pre>
+              <pre className="m-0 max-h-80 overflow-auto whitespace-pre-wrap break-words font-mono text-sm leading-6 select-text">
+                {output}
+              </pre>
             </div>
           )}
-          {!output && <p className="muted">{running ? "Running…" : "No output"}</p>}
-          {result?.artifact && <p className="artifact-path">Artifact: {result.artifact.locator}</p>}
+          {!output && (
+            <p className="m-0 text-sm text-muted-foreground">
+              {running ? "Running…" : "No output"}
+            </p>
+          )}
+          {result?.artifact && (
+            <p className="m-0 break-all text-sm text-muted-foreground">
+              Artifact: {result.artifact.locator}
+            </p>
+          )}
           <Images images={result?.images} />
         </div>
       )}
