@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "kana-client",
+      "name": "kana-remote",
       "dependencies": {
         "@capacitor/android": "8.5.2",
         "@capacitor/app": "^8.1.2",

@@ -1,4 +1,4 @@
-package io.github.longyijdos.kana.client;
+package io.github.longyijdos.kana.remote;
 
 import com.getcapacitor.BridgeActivity;
 

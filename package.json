@@ -1,5 +1,5 @@
 {
-  "name": "kana-client",
+  "name": "kana-remote",
   "private": true,
   "version": "0.0.0",
   "packageManager": "bun@1.4.2",
