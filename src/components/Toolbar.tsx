@@ -17,6 +17,7 @@ import {
   terminalOutline,
 } from "ionicons/icons";
 import { AnimatePresence, motion } from "motion/react";
+import type { Snapshot } from "../api/types";
 import { IconButton } from "./ui";
 
 const statusIcons: Record<string, string> = {
@@ -59,20 +60,41 @@ const statusColors: Record<string, string> = {
 
 export function Toolbar({
   status,
+  context,
   disabled,
   onSessions,
   onSettings,
 }: {
   status: string;
+  context: Snapshot["context"];
   disabled: boolean;
   onSessions: () => void;
   onSettings: () => void;
 }) {
+  const remaining =
+    context && context.estimated_tokens !== null && context.context_limit > 0
+      ? 100 -
+        Math.min(
+          100,
+          Math.max(0, Math.round((context.estimated_tokens / context.context_limit) * 100)),
+        )
+      : null;
   return (
     <div className="grid min-h-16 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-4">
-      <div className="flex items-center gap-0.5 justify-self-start" role="img" aria-label="Kana">
-        <span className="agent-mark small">K</span>
-        <span className="brand-name">ana</span>
+      <div className="relative justify-self-start">
+        <div className="flex items-center gap-0.5" role="img" aria-label="Kana">
+          <span className="agent-mark small">K</span>
+          <span className="brand-name">ana</span>
+        </div>
+        {remaining !== null && (
+          <span
+            className="absolute bottom-0 left-full ml-0.5 text-[10px] font-normal leading-none text-muted-foreground tabular-nums"
+            title="Context remaining"
+          >
+            <span className="sr-only">Context remaining: </span>
+            {remaining}%
+          </span>
+        )}
       </div>
       <div
         className="grid max-w-32 items-center text-base font-bold leading-6"

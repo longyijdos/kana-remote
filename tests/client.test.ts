@@ -142,7 +142,10 @@ describe("HTTP and SSE transport", () => {
         type: "snapshot",
         session_id: "session-a",
         run_id: null,
-        data: { running: true },
+        data: {
+          running: true,
+          context: { estimated_tokens: 8_000, context_limit: 32_000 },
+        },
       },
       {
         schema_version: 1,
@@ -150,6 +153,13 @@ describe("HTTP and SSE transport", () => {
         session_id: "session-a",
         run_id: "run-a",
         data: { delta: "流式回复" },
+      },
+      {
+        schema_version: 1,
+        type: "context.updated",
+        session_id: "session-a",
+        run_id: "run-a",
+        data: { estimated_tokens: 10_000, context_limit: 32_000 },
       },
     ];
     let auth: string | null = null;

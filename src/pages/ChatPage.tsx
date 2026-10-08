@@ -96,6 +96,7 @@ export function ChatPage() {
       <IonHeader className="app-header">
         <Toolbar
           status={statusLabel}
+          context={snapshot?.context}
           disabled={busy}
           onSessions={() => setSessionsOpen(true)}
           onSettings={() => setSettingsOpen(true)}

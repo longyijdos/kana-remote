@@ -80,6 +80,30 @@ describe("server event projection", () => {
     expect(state?.running).toBe(true);
     expect(state?.session?.messages).toEqual([user]);
   });
+  test("tracks context from snapshots and SSE without changing transcript activity", () => {
+    const initial = {
+      ...snapshot(),
+      running: true,
+      assistant,
+      context: { estimated_tokens: 64_000, context_limit: 128_000 },
+    };
+    let state = applyEvent(null, event("snapshot", initial));
+    expect(state?.context).toEqual(initial.context);
+    const update = event("context.updated", { estimated_tokens: 8_000, context_limit: 64_000 });
+    state = applyEvent(state, update);
+    expect(state?.context).toEqual({ estimated_tokens: 8_000, context_limit: 64_000 });
+    expect(state?.assistant).toBe(assistant);
+    expect(state?.session).toBe(initial.session);
+    expect(initial.context.estimated_tokens).toBe(64_000);
+    expect(projectActivity("compacting", update, state)).toBe("compacting");
+    state = applyEvent(
+      state,
+      event("context.updated", { estimated_tokens: null, context_limit: 64_000 }),
+    );
+    expect(state?.context?.estimated_tokens).toBeNull();
+    state = applyEvent(state, event("snapshot", snapshot()));
+    expect(state?.context).toBeUndefined();
+  });
   test("ignores an event for another session and waits for a fresh snapshot after a switch", () => {
     const state = snapshot();
     expect(applyEvent(state, event("input.committed", { message: user }, "old-session"))).toBe(

@@ -102,6 +102,7 @@ export interface Snapshot {
   } | null;
   assistant: AssistantMessage | null;
   tools: ToolState[];
+  context?: { estimated_tokens: number | null; context_limit: number };
   input_queue: InputQueue;
   approvals: Approval[];
 }

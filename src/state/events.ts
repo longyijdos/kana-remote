@@ -135,6 +135,8 @@ export function applyEvent(snapshot: Snapshot | null, event: ServerEvent): Snaps
       return { ...snapshot, input_queue: event.data as Snapshot["input_queue"] };
     case "input.committed":
       return upsertMessage(snapshot, (event.data as { message: UserMessage }).message);
+    case "context.updated":
+      return { ...snapshot, context: event.data as Snapshot["context"] };
     case "assistant.started":
       return { ...snapshot, assistant: (event.data as { message: AssistantMessage }).message };
     case "assistant.completed": {
