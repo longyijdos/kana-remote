@@ -5,6 +5,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import type { AssistantMessage, Snapshot, UserMessage } from "../api/types";
 import { type TranscriptActivity, visibleMessages } from "../state/events";
+import { useClientStore } from "../state/store";
 import { CopyButton } from "./CopyButton";
 import { Markdown } from "./Markdown";
 import { Images, ToolCard } from "./ToolCard";
@@ -66,9 +67,11 @@ const listComponents = { Footer: TranscriptFooter };
 const MessageRow = memo(function MessageRow({
   message,
   snapshot,
+  streaming,
 }: {
   message: UserMessage | AssistantMessage;
   snapshot: Snapshot;
+  streaming: boolean;
 }) {
   if (message.role === "user")
     return (
@@ -94,7 +97,7 @@ const MessageRow = memo(function MessageRow({
               // biome-ignore lint/suspicious/noArrayIndexKey: Protocol content indexes are stable while streaming.
               key={`text-${index}`}
               text={content.text}
-              streaming={snapshot.running && snapshot.assistant?.id === message.id}
+              streaming={streaming}
             />
           ) : null;
         if (content.type === "tool_call") {
@@ -126,7 +129,7 @@ const MessageRow = memo(function MessageRow({
       {message.stopReason === "aborted" && (
         <p className="my-3 text-sm text-muted-foreground">Stopped.</p>
       )}
-      {text && snapshot.assistant?.id !== message.id && (
+      {text && !streaming && (
         <div className="mt-3 flex items-center">
           <CopyButton value={text} label="Copy response" />
         </div>
@@ -144,7 +147,14 @@ export function MessageList({
   activity: TranscriptActivity | null;
   bottomInset: number;
 }) {
-  const messages = useMemo(() => visibleMessages(snapshot), [snapshot]);
+  const displayAssistant = useClientStore((state) => state.displayAssistant);
+  const messages = useMemo(
+    () =>
+      visibleMessages(snapshot).map((message) =>
+        message.id === displayAssistant?.id ? displayAssistant : message,
+      ),
+    [snapshot, displayAssistant],
+  );
   const context = useMemo(() => ({ bottomInset, activity }), [bottomInset, activity]);
   const virtuoso = useRef<VirtuosoHandle>(null);
   const atBottom = useRef(true);
@@ -178,7 +188,13 @@ export function MessageList({
           setShowLatest(!bottom);
         }}
         computeItemKey={(_index, message) => message.id}
-        itemContent={(_index, message) => <MessageRow message={message} snapshot={snapshot} />}
+        itemContent={(_index, message) => (
+          <MessageRow
+            message={message}
+            snapshot={snapshot}
+            streaming={snapshot.assistant?.id === message.id || displayAssistant?.id === message.id}
+          />
+        )}
       />
       <AnimatePresence initial={false}>
         {showLatest && (

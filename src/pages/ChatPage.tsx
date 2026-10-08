@@ -57,7 +57,10 @@ export function ChatPage() {
     onError: handleActionError,
   });
   const stop = useMutation({
-    mutationFn: () => currentApi().abort(currentSessionId()),
+    mutationFn: () => {
+      useClientStore.getState().catchUpText();
+      return currentApi().abort(currentSessionId());
+    },
     onError: handleActionError,
   });
   const active = running || send.isPending;

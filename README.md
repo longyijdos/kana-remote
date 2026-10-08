@@ -4,7 +4,8 @@
 
 使用 React、TypeScript、Vite、Ionic React、Tailwind CSS、Capacitor 和 Bun；代码检查与格式化使用 Biome。
 首版包含连接设置、当前会话的流式聊天、Markdown / 代码高亮与复制、折叠工具详情、
-工具审批、空闲时发送 / 运行中停止，以及空闲时新建或恢复历史会话。
+工具审批、空闲时发送 / 运行中停止，以及空闲时新建、恢复或删除历史会话。
+会话列表只显示标题与 24 小时时间，删除需确认，当前会话不能删除。
 界面使用英文，跟随系统明暗；思考正文不展示。顶栏显示 Agent 状态，transcript 显示
 Working、Preparing / Prepared tools，执行后展示可展开的工具块。发送成功不弹提示。
 
@@ -17,7 +18,9 @@ Markdown 使用 Streamdown，搭配 code / cjk 插件处理流式内容、Shiki 
 关闭 Tailwind 全局 Preflight，将 Ionic normalize / typography 放进基础样式层，统一由工具类控制视觉。
 交互动效使用 Motion，统一为 180ms：工具展开收起、审批与工作状态出现退出、
 回到底部按钮、状态与操作图标切换，以及输入框高度变化。按钮按压反馈使用 CSS；
-系统开启减少动态效果时取消过渡。流式正文直接显示，设置与会话弹窗沿用 Ionic 的动画。
+系统开启减少动态效果时取消过渡。设置与会话弹窗沿用 Ionic 的动画。
+流式正文通过 requestAnimationFrame 分帧显示，使用与 TUI 相同的自适应速率，积压越多显示越快。
+协议状态即时更新；工具准备、审批、停止和断线时补齐正文，重连已有文字不会重新播放。
 
 暂不提供排队或 steer 入口，运行中禁止提交新消息；输入框的发送图标切换为停止。
 审批提供 Allow once / Reject，更多菜单包含 Always trust this command（仅 shell）和
@@ -36,7 +39,7 @@ Auto-approve this session（强制审批的工具除外，切换会话后恢复�
 
 - 允许 Android WebView 来源 `https://localhost`。
 - 开发时允许 `http://localhost:5173`、`http://127.0.0.1:5173`；部署 Web 后允许实际站点来源。
-- 允许请求头 `Authorization`、`Content-Type`，请求方法 `GET`、`POST`、`OPTIONS`。
+- 允许请求头 `Authorization`、`Content-Type`，请求方法 `GET`、`POST`、`DELETE`、`OPTIONS`。
 - `OPTIONS` 预检直接返回成功，不要求 Bearer token；实际请求仍使用 Bearer 认证。
 - 错误响应也应携带 CORS 响应头；`Access-Control-Allow-Origin` 返回匹配的来源。
 - 对 `/v1/events` 关闭代理缓冲与缓存，允许长连接，保持 `text/event-stream` 响应类型。

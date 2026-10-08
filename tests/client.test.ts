@@ -102,6 +102,39 @@ describe("HTTP and SSE transport", () => {
       await server.stop(true);
     }
   });
+  test("deletes an encoded session with Bearer auth and no request body", async () => {
+    let received: unknown;
+    const server = Bun.serve({
+      port: 0,
+      hostname: "127.0.0.1",
+      async fetch(request) {
+        received = {
+          method: request.method,
+          path: new URL(request.url).pathname,
+          auth: request.headers.get("authorization"),
+          contentType: request.headers.get("content-type"),
+          body: await request.text(),
+        };
+        return response({ deleted: true });
+      },
+    });
+    try {
+      const api = new KanaApi({
+        address: `${server.url.toString().replace(/\/$/, "")}/kana`,
+        token: "secret",
+      });
+      expect(await api.deleteSession("saved/session")).toEqual({ deleted: true });
+      expect(received).toEqual({
+        method: "DELETE",
+        path: "/kana/v1/sessions/saved%2Fsession",
+        auth: "Bearer secret",
+        contentType: null,
+        body: "",
+      });
+    } finally {
+      await server.stop(true);
+    }
+  });
   test("parses named SSE events, snapshots and UTF-8 text across chunks", async () => {
     const expected: ServerEvent[] = [
       {

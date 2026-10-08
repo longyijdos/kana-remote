@@ -198,6 +198,29 @@ ion-header {
   border-radius: 16px;
 }
 
+ion-modal.confirmation-modal {
+  --width: min(360px, calc(100% - 32px));
+  --height: auto;
+  --max-height: calc(100% - 32px);
+  --background: var(--app-surface);
+  --border-radius: 16px;
+  --border-width: 1px;
+  --border-style: solid;
+  --border-color: var(--app-line);
+  --box-shadow: none;
+  --backdrop-opacity: 0.32;
+}
+ion-modal.confirmation-modal .ion-page {
+  position: relative;
+  contain: content;
+  overflow: auto;
+}
+/* Ionic moves the dismissed dialog before Sessions before clearing show-modal. */
+ion-modal.confirmation-modal.modal-default.show-modal.overlay-hidden
+~ ion-modal.sheet-modal.modal-default {
+  --backdrop-opacity: var(--ion-backdrop-opacity, 0.32);
+}
+
 /* Keep Streamdown's reset local; Ionic owns the application's base styles. */
 @layer base {
   .markdown :where(*) {

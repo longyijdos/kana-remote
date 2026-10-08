@@ -60,9 +60,13 @@ export class KanaApi {
     this.settings = settings;
   }
 
-  private async request<T>(path: string, body?: unknown): Promise<T> {
+  private async request<T>(
+    path: string,
+    body?: unknown,
+    method = body === undefined ? "GET" : "POST",
+  ): Promise<T> {
     const response = await fetch(`${this.settings.address}${path}`, {
-      method: body === undefined ? "GET" : "POST",
+      method,
       headers: {
         Authorization: `Bearer ${this.settings.token}`,
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
@@ -88,6 +92,10 @@ export class KanaApi {
 
   resumeSession(id: string): Promise<{ session_id: string }> {
     return this.request(`/v1/sessions/${encodeURIComponent(id)}/resume`, {});
+  }
+
+  deleteSession(id: string): Promise<{ deleted: true }> {
+    return this.request(`/v1/sessions/${encodeURIComponent(id)}`, undefined, "DELETE");
   }
 
   send(sessionId: string, message: string): Promise<MessageReceipt> {

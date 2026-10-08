@@ -33,6 +33,7 @@ export async function connect(settings: ConnectionSettings): Promise<void> {
 
 function activate(settings: ConnectionSettings): void {
   stream?.abort();
+  useClientStore.getState().resetText();
   queryClient.clear();
   api = new KanaApi(settings);
   useClientStore.setState({
@@ -47,6 +48,7 @@ function activate(settings: ConnectionSettings): void {
 
 export function disconnect(): void {
   stream?.abort();
+  useClientStore.getState().resetText();
   stream = null;
   api = null;
   queryClient.clear();
@@ -86,12 +88,15 @@ export function reconnect(): void {
         }
       },
       onRetry(error) {
-        if (!controller.signal.aborted)
+        if (!controller.signal.aborted) {
+          useClientStore.getState().catchUpText();
           useClientStore.getState().setStatus("reconnecting", errorMessage(error));
+        }
       },
     })
     .catch((error: unknown) => {
       if (controller.signal.aborted || client !== api) return;
+      useClientStore.getState().catchUpText();
       useClientStore
         .getState()
         .setStatus(
@@ -134,6 +139,7 @@ export function installConnectionLifecycle(): () => void {
   }
   function pause() {
     stream?.abort();
+    useClientStore.getState().catchUpText();
     if (api && useClientStore.getState().status === "connected")
       useClientStore.getState().setStatus("reconnecting");
   }
