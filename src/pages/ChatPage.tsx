@@ -19,7 +19,7 @@ const connectionLabels = {
   connected: "Connected",
   reconnecting: "Reconnecting",
   unauthorized: "Unauthorized",
-  error: "Connection failed",
+  error: "Offline",
 };
 
 export function ChatPage() {

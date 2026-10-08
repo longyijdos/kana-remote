@@ -157,17 +157,22 @@ export function MessageList({
   );
   const context = useMemo(() => ({ bottomInset, activity }), [bottomInset, activity]);
   const virtuoso = useRef<VirtuosoHandle>(null);
-  const atBottom = useRef(true);
+  const following = useRef(true);
+  const listHeight = useRef(0);
+  const scrollPosition = useRef({ top: 0, height: 0 });
+  const touchY = useRef<number | null>(null);
   const [showLatest, setShowLatest] = useState(false);
+  function setFollowing(value: boolean) {
+    following.current = value;
+    setShowLatest(!value);
+  }
   useEffect(() => {
-    if (atBottom.current && messages.length)
-      virtuoso.current?.scrollToIndex({
-        index: messages.length - 1,
-        align: "end",
-        offset: context.bottomInset,
+    if (following.current && messages.length)
+      virtuoso.current?.scrollTo({
+        top: listHeight.current,
         behavior: "auto",
       });
-  }, [messages, context]);
+  }, [messages]);
   return (
     <div className="relative min-h-0 flex-1">
       <Virtuoso
@@ -181,11 +186,37 @@ export function MessageList({
             ? { index: messages.length - 1, align: "end", offset: bottomInset }
             : undefined
         }
-        followOutput="auto"
-        atBottomThreshold={80}
-        atBottomStateChange={(bottom) => {
-          atBottom.current = bottom;
-          setShowLatest(!bottom);
+        totalListHeightChanged={(height) => {
+          listHeight.current = height;
+          if (following.current) virtuoso.current?.scrollTo({ top: height, behavior: "auto" });
+        }}
+        onWheelCapture={(event) => {
+          if (event.deltaY < 0) setFollowing(false);
+        }}
+        onTouchStartCapture={(event) => {
+          touchY.current = event.touches[0].clientY;
+        }}
+        onTouchMoveCapture={(event) => {
+          const y = event.touches[0].clientY;
+          if (touchY.current !== null && y > touchY.current) setFollowing(false);
+          touchY.current = y;
+        }}
+        onKeyDownCapture={(event) => {
+          if (
+            event.target === event.currentTarget &&
+            (["ArrowUp", "PageUp", "Home"].includes(event.key) ||
+              (event.key === " " && event.shiftKey))
+          )
+            setFollowing(false);
+        }}
+        onScrollCapture={(event) => {
+          if (event.target !== event.currentTarget) return;
+          const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+          const previous = scrollPosition.current;
+          if (scrollTop < previous.top && scrollHeight === previous.height) setFollowing(false);
+          else if (scrollTop > previous.top && Math.ceil(scrollTop + clientHeight) >= scrollHeight)
+            setFollowing(true);
+          scrollPosition.current = { top: scrollTop, height: scrollHeight };
         }}
         computeItemKey={(_index, message) => message.id}
         itemContent={(_index, message) => (
@@ -210,14 +241,13 @@ export function MessageList({
               variant="secondary"
               icon={arrowDownOutline}
               label="Scroll to latest"
-              onClick={() =>
-                virtuoso.current?.scrollToIndex({
-                  index: messages.length - 1,
-                  align: "end",
-                  offset: bottomInset,
+              onClick={() => {
+                setFollowing(true);
+                virtuoso.current?.scrollTo({
+                  top: listHeight.current,
                   behavior: "smooth",
-                })
-              }
+                });
+              }}
             />
           </motion.div>
         )}

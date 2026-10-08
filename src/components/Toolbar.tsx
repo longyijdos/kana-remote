@@ -25,7 +25,7 @@ const statusIcons: Record<string, string> = {
   Connected: checkmarkOutline,
   Reconnecting: syncOutline,
   Unauthorized: lockClosedOutline,
-  "Connection failed": alertCircleOutline,
+  Offline: alertCircleOutline,
   Compacting: layersOutline,
   Preparing: constructOutline,
   Prepared: checkmarkOutline,
@@ -36,6 +36,25 @@ const statusIcons: Record<string, string> = {
   Failed: alertCircleOutline,
   Stopped: stopOutline,
   Idle: checkmarkCircleOutline,
+};
+
+const statusColors: Record<string, string> = {
+  Disconnected: "text-muted-foreground",
+  Connecting: "text-sky-600 dark:text-sky-400",
+  Connected: "text-emerald-600 dark:text-emerald-400",
+  Reconnecting: "text-sky-600 dark:text-sky-400",
+  Unauthorized: "text-rose-600 dark:text-rose-400",
+  Offline: "text-rose-600 dark:text-rose-400",
+  Compacting: "text-sky-600 dark:text-sky-400",
+  Preparing: "text-sky-600 dark:text-sky-400",
+  Prepared: "text-sky-600 dark:text-sky-400",
+  Running: "text-sky-600 dark:text-sky-400",
+  Searching: "text-sky-600 dark:text-sky-400",
+  Responding: "text-sky-600 dark:text-sky-400",
+  Working: "text-sky-600 dark:text-sky-400",
+  Failed: "text-rose-600 dark:text-rose-400",
+  Stopped: "text-muted-foreground",
+  Idle: "text-emerald-600 dark:text-emerald-400",
 };
 
 export function Toolbar({
@@ -56,21 +75,21 @@ export function Toolbar({
         <span className="brand-name">ana</span>
       </div>
       <div
-        className="grid max-w-32 items-center text-[15px] font-medium leading-6 text-foreground"
+        className="grid max-w-32 items-center text-base font-bold leading-6"
         role="status"
         title={status}
       >
         <AnimatePresence initial={false}>
           <motion.span
             key={status}
-            className="col-start-1 row-start-1 flex min-w-0 items-center justify-center gap-2"
+            className={`col-start-1 row-start-1 flex min-w-0 items-center justify-center gap-2 ${statusColors[status]}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <IonIcon
               icon={statusIcons[status]}
-              className="size-4 shrink-0 text-muted-foreground"
+              className="size-[18px] shrink-0"
               aria-hidden="true"
             />
             <span className="truncate">{status}</span>
