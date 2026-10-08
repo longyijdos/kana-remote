@@ -36,3 +36,7 @@ bun run android:apk
 ```
 
 Debug APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
+
+## Releases
+
+Push a `v*` tag matching both `package.json` and Android `versionName` to publish a signed APK and SHA-256 checksum. The release workflow also supports manual runs with an existing tag. Increase Android `versionCode` with each release.

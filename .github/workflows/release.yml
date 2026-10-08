@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to publish, for example v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  release:
+    name: Build and publish Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: "platform-tools platforms;android-36 build-tools;35.0.0"
+      - run: bun install --frozen-lockfile
+      - name: Check release versions
+        run: |
+          version="$(bun -e 'console.log((await Bun.file("package.json").json()).version)')"
+          android_version="$(sed -n 's/^[[:space:]]*versionName "\(.*\)"/\1/p' android/app/build.gradle)"
+          if [[ "$RELEASE_TAG" != "v$version" || "$android_version" != "$version" ]]; then
+            echo "Release tag and Android version must match package.json ($version)." >&2
+            exit 1
+          fi
+      - run: bun run check
+      - run: bun test
+      - run: bun run android:sync
+      - name: Build release APK
+        run: ./android/gradlew -p android --no-daemon assembleRelease
+      - name: Sign and verify APK
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/kana-remote.jks"
+          build_tools="$ANDROID_HOME/build-tools/35.0.0"
+          apk="dist/release/kana-remote-$RELEASE_TAG.apk"
+          mkdir -p dist/release
+          "$build_tools/zipalign" -P 16 -f 4 \
+            android/app/build/outputs/apk/release/app-release-unsigned.apk \
+            "$RUNNER_TEMP/kana-remote-aligned.apk"
+          "$build_tools/apksigner" sign \
+            --ks "$RUNNER_TEMP/kana-remote.jks" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD \
+            --out "$apk" "$RUNNER_TEMP/kana-remote-aligned.apk"
+          "$build_tools/apksigner" verify "$apk"
+      - name: Generate checksum
+        working-directory: dist/release
+        run: sha256sum "kana-remote-$RELEASE_TAG.apk" > "kana-remote-$RELEASE_TAG.apk.sha256"
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/release/*.apk dist/release/*.sha256 --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/release/*.apk dist/release/*.sha256 \
+              --verify-tag --title "$RELEASE_TAG" --generate-notes \
+              --notes "A simple Web and Android frontend for the Kana server API."
+          fi
