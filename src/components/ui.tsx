@@ -18,7 +18,7 @@ export function Spinner({ className = "size-4" }: { className?: string }) {
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost";
-  iconOnly?: boolean;
+  iconOnly?: boolean | "small";
 };
 const variants = {
   primary: "border-foreground bg-foreground text-background hover:opacity-85",
@@ -38,7 +38,11 @@ export function Button({
     <button
       type={type}
       className={`inline-flex items-center justify-center gap-2 border border-solid font-medium transition-[color,background-color,border-color,opacity,scale] duration-[180ms] ease-out active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100 ${
-        iconOnly ? "size-10 shrink-0 rounded-full p-0" : "min-h-10 rounded-xl px-4 py-2.5 text-sm"
+        iconOnly === "small"
+          ? "size-8 shrink-0 rounded-full p-0"
+          : iconOnly
+            ? "size-10 shrink-0 rounded-full p-0"
+            : "min-h-10 rounded-xl px-4 py-2.5 text-sm"
       } ${variants[variant]} ${className}`}
       {...props}
     />
@@ -49,14 +53,22 @@ export function IconButton({
   icon: Icon,
   label,
   busy = false,
+  small = false,
   ...props
 }: Omit<ButtonProps, "children" | "iconOnly"> & {
   icon: LucideIcon;
   label: string;
   busy?: boolean;
+  small?: boolean;
 }) {
   return (
-    <Button variant="ghost" iconOnly aria-label={label} title={label} {...props}>
+    <Button
+      variant="ghost"
+      iconOnly={small ? "small" : true}
+      aria-label={label}
+      title={label}
+      {...props}
+    >
       <span className="grid size-5 place-items-center" aria-hidden="true">
         <AnimatePresence initial={false}>
           <motion.span
@@ -66,7 +78,11 @@ export function IconButton({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.85 }}
           >
-            {busy ? <Spinner /> : <Icon className="size-[18px]" strokeWidth={1.75} />}
+            {busy ? (
+              <Spinner />
+            ) : (
+              <Icon className={small ? "size-4" : "size-[18px]"} strokeWidth={1.75} />
+            )}
           </motion.span>
         </AnimatePresence>
       </span>

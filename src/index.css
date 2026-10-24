@@ -138,7 +138,10 @@ ion-header.app-header {
   }
 }
 .composer-overlay {
+  padding-top: 20px;
   padding-bottom: max(12px, var(--ion-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+  /* Text scrolling under the composer fades out instead of showing through the gaps. */
+  background: linear-gradient(to bottom, transparent, var(--ion-background-color) 20px);
 }
 .composer-textarea {
   min-height: 40px;
@@ -337,31 +340,46 @@ ion-modal.confirmation-modal.modal-default.show-modal.overlay-hidden
 .markdown [data-streamdown="code-block-body"] pre {
   background: transparent;
 }
-.markdown [data-streamdown="table-wrapper"] {
+.markdown .table-scroll {
   margin: 20px 0;
-  border: 0;
-  background: transparent;
-  padding: 0;
-}
-.markdown [data-streamdown="table-wrapper"] > div {
-  border: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 .markdown table {
-  width: 100%;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: 14px;
-}
-.markdown :where(td, th) {
-  border: 1px solid var(--app-line);
-  padding: 10px 12px;
-  text-align: left;
+  line-height: 1.55;
 }
 .markdown thead {
-  background: var(--app-surface);
+  background: transparent;
+}
+.markdown :where(td, th) {
+  min-width: 5.5em;
+  border: 0;
+  padding: 9px 16px 9px 0;
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.markdown :where(td, th):last-child {
+  padding-right: 0;
 }
 .markdown th {
-  background: transparent;
+  border-bottom: 1px solid var(--app-line);
+  color: var(--app-muted);
+  font-size: 13px;
   font-weight: 500;
+}
+.markdown tbody > tr {
+  border: 0;
+}
+.markdown tbody > tr + tr > td {
+  border-top: 1px solid color-mix(in srgb, var(--app-line) 60%, transparent);
+}
+.markdown td code {
+  white-space: nowrap;
 }
 
 .tool-markdown .markdown {

@@ -26,7 +26,7 @@ export function ChatPage() {
   useLayoutEffect(() => {
     const element = overlay.current;
     if (!element) return;
-    const update = () => setBottomInset(Math.ceil(element.getBoundingClientRect().height) + 12);
+    const update = () => setBottomInset(Math.ceil(element.getBoundingClientRect().height));
     const observer = new ResizeObserver(update);
     update();
     observer.observe(element);

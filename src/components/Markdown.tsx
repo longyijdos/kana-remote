@@ -12,6 +12,14 @@ const controls: ControlsConfig = {
   mermaid: false,
 };
 const components: Components = {
+  // Streamdown's own wrapper caps table height and adds nested borders; scroll sideways only.
+  table({ children }) {
+    return (
+      <div className="table-scroll" data-streamdown="table-wrapper">
+        <table data-streamdown="table">{children}</table>
+      </div>
+    );
+  },
   pre({ children }) {
     return <CodeCard>{children}</CodeCard>;
   },

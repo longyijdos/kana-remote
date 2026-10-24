@@ -17,7 +17,7 @@ function Label({ text, copy }: { text: string; copy?: string }) {
   return (
     <div className="flex min-h-8 items-center justify-between text-xs text-muted-foreground">
       <span>{text}</span>
-      {copy !== undefined && <CopyButton value={copy} />}
+      {copy !== undefined && <CopyButton value={copy} small />}
     </div>
   );
 }
@@ -92,7 +92,7 @@ function Block({ block, maxHeight }: { block: ToolBlock; maxHeight: string }) {
       return (
         <div className="relative pt-1.5">
           <div className="absolute -right-2 top-0">
-            <CopyButton value={block.command} label="Copy command" />
+            <CopyButton value={block.command} label="Copy command" small />
           </div>
           <div className={`${mono} ${scroll} ${maxHeight} pr-8`}>
             <div className="flex gap-2 whitespace-pre-wrap break-words">

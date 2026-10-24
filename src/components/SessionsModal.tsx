@@ -1,6 +1,6 @@
 import { createAnimation, IonContent, IonHeader, IonModal } from "@ionic/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import { useRef, useState } from "react";
 import { errorMessage } from "../api/client";
@@ -30,6 +30,27 @@ function confirmationAnimation(element: HTMLElement, entering: boolean) {
     ]);
 }
 
+const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+function formatWhen(timestamp: string): string {
+  const date = new Date(timestamp);
+  const seconds = (date.getTime() - Date.now()) / 1_000;
+  const elapsed = Math.abs(seconds);
+  if (elapsed < 60) return "just now";
+  if (elapsed < 3_600) return relative.format(Math.round(seconds / 60), "minute");
+  if (elapsed < 86_400) return relative.format(Math.round(seconds / 3_600), "hour");
+  if (elapsed < 7 * 86_400) return relative.format(Math.round(seconds / 86_400), "day");
+  return date.toLocaleDateString("en", {
+    month: "short",
+    day: "numeric",
+    ...(date.getFullYear() === new Date().getFullYear() ? {} : { year: "numeric" }),
+  });
+}
+
+function plural(count: number, word: string): string {
+  return `${count} ${word}${count === 1 ? "" : "s"}`;
+}
+
 export function SessionsModal({
   open,
   onClose,
@@ -40,7 +61,8 @@ export function SessionsModal({
   disabled: boolean;
 }) {
   const status = useClientStore((state) => state.status);
-  const active = useClientStore((state) => state.snapshot?.session?.id);
+  const session = useClientStore((state) => state.snapshot?.session);
+  const active = session?.id;
   const queryClient = useQueryClient();
   const confirmation = useRef<HTMLIonModalElement>(null);
   const reducedMotion = useReducedMotion();
@@ -68,8 +90,15 @@ export function SessionsModal({
   const unavailable = disabled || change.isPending || remove.isPending || status !== "connected";
   const saved =
     sessions.data?.sessions
-      .filter((session) => session.id !== active)
+      .filter((item) => item.id !== active)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) ?? [];
+  const started = session?.timeline[0]?.timestamp;
+  const messageCount =
+    session?.messages.filter(
+      (message) =>
+        message.role === "assistant" ||
+        (message.role === "user" && message.provenance.kind === "user_input"),
+    ).length ?? 0;
   return (
     <>
       <IonModal isOpen={open} onDidDismiss={onClose} className="sheet-modal">
@@ -77,27 +106,45 @@ export function SessionsModal({
           <ModalHeader title="Sessions" onClose={onClose} />
         </IonHeader>
         <IonContent>
-          <div className="mx-auto max-w-xl px-6 py-6">
-            <div className="surface-card mb-4 flex flex-col gap-2 p-4">
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <strong className="text-sm font-medium">Current session</strong>
-                <code className="break-all font-mono text-xs text-muted-foreground">
-                  {active ?? "Syncing"}
-                </code>
-              </div>
-            </div>
-            <Button className="w-full" disabled={unavailable} onClick={() => change.mutate(null)}>
-              {change.isPending && change.variables === null ? <Spinner /> : "New session"}
-            </Button>
-            <h2 className="mb-3 mt-8 text-sm font-medium text-muted-foreground">Saved sessions</h2>
+          <div className="mx-auto max-w-xl px-5 py-5">
+            <section className="rounded-2xl bg-muted/60 p-4">
+              <h3 className="m-0 text-sm font-medium">Current session</h3>
+              <p className="mb-0 mt-1 text-[13px] text-muted-foreground">
+                {session
+                  ? [
+                      started ? `Started ${formatWhen(started)}` : "Just started",
+                      plural(messageCount, "message"),
+                    ].join(" · ")
+                  : "Syncing…"}
+              </p>
+              <Button
+                variant="secondary"
+                className="mt-4 w-full"
+                disabled={unavailable}
+                onClick={() => change.mutate(null)}
+              >
+                {change.isPending && change.variables === null ? (
+                  <Spinner />
+                ) : (
+                  <Plus className="size-4" strokeWidth={2} aria-hidden="true" />
+                )}
+                Start a new session
+              </Button>
+              <p className="mb-0 mt-2 text-xs leading-5 text-muted-foreground">
+                The current session is saved and can be resumed later.
+              </p>
+            </section>
+            <h2 className="mb-1 mt-7 px-1 text-[13px] font-medium text-muted-foreground">
+              Saved sessions
+            </h2>
             {sessions.isPending && (
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-3 px-1 py-3 text-sm text-muted-foreground">
                 <Spinner />
                 <span>Loading</span>
               </div>
             )}
             {sessions.isError && (
-              <div className="form-error">
+              <div className="form-error px-1">
                 <p>{errorMessage(sessions.error)}</p>
                 <Button variant="secondary" onClick={() => void sessions.refetch()}>
                   Retry
@@ -105,36 +152,38 @@ export function SessionsModal({
               </div>
             )}
             {!sessions.isPending && !sessions.isError && !saved.length && (
-              <p className="text-sm text-muted-foreground">No saved sessions.</p>
+              <p className="px-1 py-3 text-sm text-muted-foreground">No saved sessions yet.</p>
             )}
-            <div className="flex flex-col gap-3">
-              {saved.map((session) => (
-                <div key={session.id} className="surface-card relative">
+            <ul className="m-0 list-none divide-y divide-border p-0">
+              {saved.map((item) => (
+                <li key={item.id} className="flex items-center gap-1">
                   <button
                     type="button"
-                    className="flex w-full min-w-0 flex-col gap-2 rounded-2xl bg-transparent p-4 pr-16 text-left text-foreground transition-colors hover:bg-muted/30 disabled:opacity-40 motion-reduce:transition-none"
+                    className="-mx-1 flex min-w-0 flex-1 flex-col gap-0.5 rounded-xl bg-transparent px-2 py-3 text-left text-foreground transition-colors hover:bg-muted/50 disabled:opacity-40 motion-reduce:transition-none"
                     disabled={unavailable}
-                    onClick={() => change.mutate(session.id)}
+                    onClick={() => change.mutate(item.id)}
                   >
-                    <strong className="min-h-6 break-words text-sm font-medium leading-6">
-                      {session.title || "Untitled"}
-                    </strong>
-                    <small className="text-xs text-muted-foreground">
-                      {new Date(session.updatedAt).toLocaleString("en", { hourCycle: "h23" })}{" "}
-                      {change.isPending && change.variables === session.id ? " · Resuming…" : ""}
-                    </small>
+                    <span className="line-clamp-2 break-words text-sm font-medium leading-6">
+                      {item.title || "Untitled"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {change.isPending && change.variables === item.id
+                        ? "Resuming…"
+                        : formatWhen(item.updatedAt)}
+                    </span>
                   </button>
                   <IconButton
-                    className="absolute right-2 top-1/2 -translate-y-1/2"
+                    small
+                    className="text-muted-foreground/70"
                     icon={Trash2}
                     label="Delete session"
                     disabled={unavailable}
-                    busy={remove.isPending && remove.variables === session.id}
-                    onClick={() => setDeleteTarget(session)}
+                    busy={remove.isPending && remove.variables === item.id}
+                    onClick={() => setDeleteTarget(item)}
                   />
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         </IonContent>
       </IonModal>

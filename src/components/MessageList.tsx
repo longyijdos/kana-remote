@@ -208,8 +208,13 @@ const MessageRow = memo(function MessageRow({
         <p className="my-3 text-sm text-muted-foreground">Stopped.</p>
       )}
       {text && !streaming && (
-        <div className="mt-3 flex items-center">
-          <CopyButton value={text} label="Copy response" />
+        <div className="-ml-2 mt-1 flex items-center">
+          <CopyButton
+            value={text}
+            label="Copy response"
+            small
+            className="text-muted-foreground/70"
+          />
         </div>
       )}
     </article>
