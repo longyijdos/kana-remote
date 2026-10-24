@@ -13,7 +13,7 @@ export interface MessageImage {
 export interface UserMessage {
   id: string;
   role: "user";
-  provenance: { kind: string; origin?: string };
+  provenance: { kind: string; origin?: string; round?: number };
   content: string;
   images?: MessageImage[];
 }

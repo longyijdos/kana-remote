@@ -1,9 +1,21 @@
-import { ArrowDown } from "lucide-react";
+import {
+  AlarmClock,
+  ArrowDown,
+  Bot,
+  ClipboardCheck,
+  Clock,
+  FoldVertical,
+  type LucideIcon,
+  RotateCcw,
+  SquareTerminal,
+  Target,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import type { AssistantMessage, Snapshot, UserMessage } from "../api/types";
 import { type TranscriptActivity, visibleMessages } from "../state/events";
+import { describeUserMessage, type NoticeKind } from "../state/notices";
 import { useClientStore } from "../state/store";
 import { CopyButton } from "./CopyButton";
 import { Markdown } from "./Markdown";
@@ -63,6 +75,80 @@ function TranscriptFooter({ context }: { context: TranscriptContext }) {
 }
 const listComponents = { Footer: TranscriptFooter };
 
+const noticeIcons: Record<NoticeKind, LucideIcon> = {
+  wake: AlarmClock,
+  job: SquareTerminal,
+  subagent: Bot,
+  task: ClipboardCheck,
+  goal: Target,
+  recovery: RotateCcw,
+  compaction: FoldVertical,
+};
+
+function Notice({ notice, label, detail }: { notice: NoticeKind; label: string; detail?: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const Icon = noticeIcons[notice];
+  // Wakes carry Kana's own note, which is the point of the notice; others hide bulky detail.
+  const inline = notice === "wake" ? detail : undefined;
+  const expandable = Boolean(detail) && !inline;
+  const content = (
+    <>
+      <span className="flex items-center justify-center gap-1.5">
+        <Icon className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+        <span className="font-medium">{label}</span>
+      </span>
+      {inline && (
+        <span className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-center">
+          {inline}
+        </span>
+      )}
+    </>
+  );
+  return (
+    <article className="mx-auto flex w-full max-w-3xl flex-col items-center px-8 py-3 sm:px-6">
+      {expandable ? (
+        <button
+          type="button"
+          className="flex max-w-full flex-col rounded-lg bg-transparent px-2 py-1 text-[13px] leading-5 text-muted-foreground transition-colors hover:bg-muted/60 motion-reduce:transition-none"
+          aria-expanded={expanded}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {content}
+        </button>
+      ) : (
+        <div className="flex max-w-full flex-col px-2 py-1 text-[13px] leading-5 text-muted-foreground">
+          {content}
+        </div>
+      )}
+      {expandable && expanded && (
+        <div className="mt-2 max-h-72 w-full overflow-auto rounded-xl bg-muted/60 px-4 py-3 text-sm leading-6 whitespace-pre-wrap break-words select-text">
+          {detail}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function UserRow({ message }: { message: UserMessage }) {
+  const entry = describeUserMessage(message);
+  if (entry.kind === "notice")
+    return <Notice notice={entry.notice} label={entry.label} detail={entry.detail} />;
+  return (
+    <article className="mx-auto flex w-full max-w-3xl flex-col items-end px-5 py-3 sm:px-6">
+      {entry.scheduled && (
+        <span className="mb-1 flex items-center gap-1 pr-1 text-xs text-muted-foreground">
+          <Clock className="size-3" strokeWidth={2} aria-hidden="true" />
+          Scheduled
+        </span>
+      )}
+      <div className="max-w-[88%] rounded-2xl bg-muted px-4 py-3 text-base leading-7">
+        <div className="whitespace-pre-wrap break-words select-text">{entry.text}</div>
+        <Images images={message.images} />
+      </div>
+    </article>
+  );
+}
+
 const MessageRow = memo(function MessageRow({
   message,
   snapshot,
@@ -72,15 +158,7 @@ const MessageRow = memo(function MessageRow({
   snapshot: Snapshot;
   streaming: boolean;
 }) {
-  if (message.role === "user")
-    return (
-      <article className="mx-auto flex w-full max-w-3xl justify-end px-5 py-3 sm:px-6">
-        <div className="max-w-[88%] rounded-2xl bg-muted px-4 py-3 text-base leading-7">
-          <div className="whitespace-pre-wrap break-words select-text">{message.content}</div>
-          <Images images={message.images} />
-        </div>
-      </article>
-    );
+  if (message.role === "user") return <UserRow message={message} />;
   const results = snapshot.session?.messages.filter((item) => item.role === "tool") ?? [];
   const text = message.content
     .filter((content) => content.type === "text")

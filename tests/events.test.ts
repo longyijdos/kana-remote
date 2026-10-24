@@ -166,13 +166,15 @@ describe("server event projection", () => {
     state = applyEvent(state, event("approval.resolved", { id: approval.id, decision: "allow" }));
     expect(state?.approvals).toEqual([]);
   });
-  test("does not expose thinking or injected runtime context as chat", () => {
+  test("shows automatic inputs but not thinking or injected runtime context", () => {
+    const notice = { ...user, id: "job", provenance: { kind: "job_completion" } };
     const state = {
       ...snapshot(),
       session: {
         ...snapshot().session,
         messages: [
           user,
+          notice,
           { ...user, id: "hidden", provenance: { kind: "runtime_context" } },
           {
             ...assistant,
@@ -182,7 +184,7 @@ describe("server event projection", () => {
         ],
       },
     };
-    expect(visibleMessages(state)).toEqual([user]);
+    expect(visibleMessages(state)).toEqual([user, notice]);
     const thinking = {
       ...state,
       assistant: { ...assistant, content: [{ type: "thinking" as const, text: "" }] },

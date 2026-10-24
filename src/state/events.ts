@@ -7,6 +7,7 @@ import type {
   ToolState,
   UserMessage,
 } from "../api/types";
+import { isVisibleUserMessage } from "./notices";
 
 export type TranscriptActivity = "working" | "preparing" | "prepared" | "compacting";
 
@@ -205,10 +206,7 @@ export function applyEvent(snapshot: Snapshot | null, event: ServerEvent): Snaps
 export function visibleMessages(snapshot: Snapshot): (UserMessage | AssistantMessage)[] {
   const messages = snapshot.session?.messages ?? [];
   const visible = messages.filter((message): message is UserMessage | AssistantMessage => {
-    if (message.role === "user")
-      return (
-        message.provenance.kind === "user_input" || message.provenance.kind === "scheduled_input"
-      );
+    if (message.role === "user") return isVisibleUserMessage(message);
     return message.role === "assistant" && hasVisibleContent(message, snapshot);
   });
   if (
