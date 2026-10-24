@@ -304,6 +304,25 @@ ion-modal.confirmation-modal.modal-default.show-modal.overlay-hidden
   overflow-y: hidden;
   padding: 2px 0;
 }
+.markdown [data-streamdown="mermaid-block"] {
+  margin: 20px 0;
+  border: 0;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--app-subtle) 60%, transparent);
+  padding: 12px;
+}
+.markdown [data-streamdown="mermaid-block"] > div {
+  border: 0;
+  background: transparent;
+}
+/* Inline diagrams are view-only; panning and zooming happen in the fullscreen viewer. */
+.markdown [data-streamdown="mermaid"] {
+  pointer-events: none;
+}
+.markdown [data-streamdown="mermaid"] div:has(> button[title="Zoom in"]) {
+  display: none;
+}
+
 .markdown hr {
   margin: 24px 0;
   border: 0;

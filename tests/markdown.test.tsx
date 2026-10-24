@@ -46,6 +46,16 @@ describe("Markdown rendering", () => {
     );
   });
 
+  test("draws finished Mermaid fences and keeps unfinished ones as source", () => {
+    // The diagram renderer is lazy, so static markup shows its loading placeholder.
+    const finished = render("```mermaid\ngraph TD\n  A --> B\n```");
+    expect(finished).not.toContain('data-streamdown="code-block"');
+    expect(finished).not.toContain('data-streamdown="inline-code"');
+    const partial = render("```mermaid\ngraph TD\n  A -->", true);
+    expect(partial).toContain('data-streamdown="code-block"');
+    expect(partial).toContain("graph TD");
+  });
+
   test("sanitizes raw HTML and unsafe link protocols", () => {
     const html = render(
       '[bad](javascript:alert%281%29)\n\n<script>alert(1)</script>\n\n<img src="x" onerror="alert(1)">',
