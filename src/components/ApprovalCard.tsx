@@ -1,11 +1,13 @@
 import { IonPopover } from "@ionic/react";
 import { useMutation } from "@tanstack/react-query";
-import { Check, Ellipsis, ShieldCheck, X } from "lucide-react";
+import { Check, Ellipsis, FastForward, ShieldAlert, ShieldCheck, X } from "lucide-react";
 import { useIsPresent } from "motion/react";
 import { useState } from "react";
 import type { Approval, ApprovalDecision } from "../api/types";
 import { currentApi, handleActionError } from "../state/connection";
-import { formatValue } from "./ToolRow";
+import { approvalTitle, inputBlocks } from "../tools/describe";
+import { ToolBlocks } from "./ToolBlocks";
+import { MenuItem } from "./Toolbar";
 import { Button, IconButton, Spinner } from "./ui";
 
 export function ApprovalCard({ approval, disabled }: { approval: Approval; disabled: boolean }) {
@@ -23,20 +25,31 @@ export function ApprovalCard({ approval, disabled }: { approval: Approval; disab
     setMenuEvent(undefined);
     decision.mutate(value);
   }
+  const call = { name: approval.tool_call.name, args: approval.tool_call.arguments };
+  const requester = approval.agent.kind === "main" ? "Kana" : approval.agent.label;
+  const blocks = inputBlocks(call);
   return (
-    <section className="surface-card p-4" aria-label="Tool approval">
-      <div className="flex items-center gap-2.5">
-        <ShieldCheck className="size-5" strokeWidth={1.75} aria-hidden="true" />
-        <strong className="text-base font-medium">Approval</strong>
-        <span className="ml-auto text-sm text-muted-foreground">{approval.agent.label}</span>
+    <section className="approval-card p-4" aria-label="Tool approval">
+      <div className="flex items-start gap-2.5">
+        <ShieldAlert
+          className="mt-[3px] size-[18px] shrink-0 text-amber-500"
+          strokeWidth={2}
+          aria-hidden="true"
+        />
+        <h3 className="m-0 text-[15px] font-semibold leading-6">
+          {approvalTitle(call, requester)}
+        </h3>
       </div>
-      <p className="mb-2 mt-4 font-mono text-sm">{approval.tool_call.name}</p>
-      <pre className="m-0 max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono text-sm leading-6 select-text">
-        {formatValue(approval.tool_call.arguments)}
-      </pre>
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-3 space-y-1 rounded-xl bg-muted/60 px-3.5 pb-2.5 pt-1">
+        {blocks.length ? (
+          <ToolBlocks blocks={blocks} maxHeight="max-h-40" />
+        ) : (
+          <p className="m-0 py-1.5 font-mono text-[13px]">{call.name}</p>
+        )}
+      </div>
+      <div className="mt-3 flex items-center gap-2">
         <IconButton
-          className="mr-auto"
+          className="mr-auto -ml-2"
           icon={Ellipsis}
           label="More approval options"
           disabled={unavailable}
@@ -57,7 +70,7 @@ export function ApprovalCard({ approval, disabled }: { approval: Approval; disab
           ) : (
             <Check className="size-4" strokeWidth={2} aria-hidden="true" />
           )}
-          Allow once
+          Allow
         </Button>
       </div>
       <IonPopover
@@ -66,25 +79,15 @@ export function ApprovalCard({ approval, disabled }: { approval: Approval; disab
         onDidDismiss={() => setMenuEvent(undefined)}
         className="app-menu"
       >
-        <div className="flex flex-col p-2">
+        <div className="flex flex-col p-1.5">
           {approval.allow_always && (
-            <button
-              type="button"
-              className="rounded-xl bg-transparent px-3 py-3 text-left text-sm text-foreground hover:bg-muted/50"
-              disabled={unavailable}
-              onClick={() => choose("always")}
-            >
+            <MenuItem icon={ShieldCheck} disabled={unavailable} onClick={() => choose("always")}>
               Always trust this command
-            </button>
+            </MenuItem>
           )}
-          <button
-            type="button"
-            className="rounded-xl bg-transparent px-3 py-3 text-left text-sm text-foreground hover:bg-muted/50"
-            disabled={unavailable}
-            onClick={() => choose("never")}
-          >
+          <MenuItem icon={FastForward} disabled={unavailable} onClick={() => choose("never")}>
             Auto-approve this session
-          </button>
+          </MenuItem>
         </div>
       </IonPopover>
     </section>

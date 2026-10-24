@@ -62,9 +62,16 @@ describe("presence", () => {
     const running: Snapshot = {
       ...idle,
       running: true,
-      tools: [{ tool_call_id: "t1", name: "shell", status: "running" }],
+      tools: [
+        {
+          tool_call_id: "t1",
+          name: "shell",
+          status: "running",
+          arguments: { command: "git status" },
+        },
+      ],
     };
-    expect(describeState(running)).toEqual({ label: "Running shell…", tone: "active" });
+    expect(describeState(running)).toEqual({ label: "Running git status…", tone: "active" });
     expect(
       describeState({
         ...running,

@@ -7,7 +7,7 @@ import { type TranscriptActivity, visibleMessages } from "../state/events";
 import { useClientStore } from "../state/store";
 import { CopyButton } from "./CopyButton";
 import { Markdown } from "./Markdown";
-import { Images, ToolRow } from "./ToolRow";
+import { HostedToolRow, Images, ToolRow } from "./ToolRow";
 import { IconButton } from "./ui";
 
 type TranscriptContext = {
@@ -115,11 +115,11 @@ const MessageRow = memo(function MessageRow({
           );
         }
         return (
-          <ToolRow
+          <HostedToolRow
             key={content.id}
             name={content.name}
-            args={content.action}
-            hostedStatus={content.status}
+            status={content.status}
+            action={content.action}
           />
         );
       })}

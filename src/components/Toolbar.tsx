@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Snapshot } from "../api/types";
 import type { TranscriptActivity } from "../state/events";
 import type { ConnectionStatus } from "../state/store";
+import { hostedToolTitle, toolLabel, toolTarget } from "../tools/describe";
 import { IconButton } from "./ui";
 
 export type PresenceTone = "idle" | "active" | "attention" | "offline" | "pending";
@@ -41,13 +42,19 @@ export function presence({
   if (snapshot.running || sending) {
     if (activity === "compacting") return { label: "Compacting context…", tone: "active" };
     const tool = snapshot.tools.find((item) => item.status === "running" && !item.paused);
-    if (tool) return { label: `Running ${tool.name}…`, tone: "active" };
-    if (
-      snapshot.assistant?.content.some(
-        (content) => content.type === "hosted_tool" && content.status === "in_progress",
-      )
-    )
-      return { label: "Searching the web…", tone: "active" };
+    if (tool) {
+      const call = { name: tool.name, args: tool.arguments };
+      const target = toolTarget(call);
+      return {
+        label: `${toolLabel(call, "running")}${target ? ` ${target.replace(/\s+/g, " ")}` : ""}…`,
+        tone: "active",
+      };
+    }
+    const hosted = snapshot.assistant?.content.find(
+      (content) => content.type === "hosted_tool" && content.status === "in_progress",
+    );
+    if (hosted?.type === "hosted_tool")
+      return { label: `${hostedToolTitle(hosted.name, hosted.status).label}…`, tone: "active" };
     if (snapshot.assistant?.content.some((content) => content.type === "text" && content.text))
       return { label: "Typing…", tone: "active" };
     return { label: "Working…", tone: "active" };
