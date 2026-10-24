@@ -96,10 +96,9 @@
     outline-offset: 3px;
   }
 }
-ion-header {
+ion-header.app-header {
   box-shadow: none;
-}
-.app-header {
+  border-bottom: 1px solid color-mix(in srgb, var(--app-line) 70%, transparent);
   padding-top: var(--ion-safe-area-top, env(safe-area-inset-top, 0px));
 }
 @layer components {
@@ -160,42 +159,15 @@ ion-header {
   overflow-wrap: anywhere;
 }
 
-.agent-mark {
-  display: inline-grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: var(--ion-color-primary);
-  color: var(--ion-color-primary-contrast);
-  font:
-    700 27px / 1 Georgia,
-    serif;
-}
-.agent-mark.small {
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  font-size: 18px;
-}
-.brand-name {
-  font-family: Georgia, serif;
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.7px;
-  line-height: 1;
-}
-.connection-brand .brand-name {
-  font-size: 34px;
-}
-.approval-menu {
-  --width: 280px;
+.app-menu {
+  --width: 248px;
   --background: var(--app-surface);
-  --box-shadow: 0 8px 32px #00000014;
+  --box-shadow: 0 12px 32px -8px #0000002e, 0 2px 6px -2px #0000001a;
+  --backdrop-opacity: 0;
 }
-.approval-menu::part(content) {
+.app-menu::part(content) {
   border: 1px solid var(--app-line);
-  border-radius: 16px;
+  border-radius: 14px;
 }
 
 ion-modal.confirmation-modal {

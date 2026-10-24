@@ -1,4 +1,4 @@
-import { IonIcon } from "@ionic/react";
+import type { LucideIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ButtonHTMLAttributes } from "react";
 
@@ -46,12 +46,12 @@ export function Button({
 }
 
 export function IconButton({
-  icon,
+  icon: Icon,
   label,
   busy = false,
   ...props
 }: Omit<ButtonProps, "children" | "iconOnly"> & {
-  icon: string;
+  icon: LucideIcon;
   label: string;
   busy?: boolean;
 }) {
@@ -60,13 +60,13 @@ export function IconButton({
       <span className="grid size-5 place-items-center" aria-hidden="true">
         <AnimatePresence initial={false}>
           <motion.span
-            key={busy ? "busy" : icon}
+            key={busy ? "busy" : Icon.displayName}
             className="col-start-1 row-start-1 flex size-5 items-center justify-center"
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.85 }}
           >
-            {busy ? <Spinner /> : <IonIcon className="size-5" icon={icon} aria-hidden="true" />}
+            {busy ? <Spinner /> : <Icon className="size-[18px]" strokeWidth={1.75} />}
           </motion.span>
         </AnimatePresence>
       </span>

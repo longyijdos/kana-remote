@@ -1,4 +1,4 @@
-import { checkmarkOutline, copyOutline } from "ionicons/icons";
+import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { useClientStore } from "../state/store";
 import { IconButton } from "./ui";
@@ -15,7 +15,7 @@ export function CopyButton({
   const [copied, setCopied] = useState(false);
   return (
     <IconButton
-      icon={copied ? checkmarkOutline : copyOutline}
+      icon={copied ? Check : Copy}
       label={copied ? "Copied" : label}
       disabled={disabled}
       onClick={async () => {

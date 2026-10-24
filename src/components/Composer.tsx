@@ -1,4 +1,4 @@
-import { arrowUpOutline, stopOutline } from "ionicons/icons";
+import { ArrowUp, Square } from "lucide-react";
 import { motion } from "motion/react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { IconButton } from "./ui";
@@ -66,7 +66,7 @@ export function Composer({
       <IconButton
         type={active ? "button" : "submit"}
         variant="primary"
-        icon={active ? stopOutline : arrowUpOutline}
+        icon={active ? Square : ArrowUp}
         label={active ? "Stop" : "Send"}
         busy={pending}
         disabled={active ? !canStop : !canSend}

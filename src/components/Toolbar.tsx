@@ -1,138 +1,201 @@
-import { IonIcon } from "@ionic/react";
-import {
-  alertCircleOutline,
-  chatbubbleEllipsesOutline,
-  checkmarkCircleOutline,
-  checkmarkOutline,
-  closeOutline,
-  cloudOfflineOutline,
-  constructOutline,
-  ellipsisHorizontalOutline,
-  layersOutline,
-  lockClosedOutline,
-  searchOutline,
-  settingsOutline,
-  stopOutline,
-  syncOutline,
-  terminalOutline,
-} from "ionicons/icons";
-import { AnimatePresence, motion } from "motion/react";
+import { IonPopover } from "@ionic/react";
+import { Ellipsis, History, type LucideIcon, Plug, X } from "lucide-react";
+import { useState } from "react";
 import type { Snapshot } from "../api/types";
+import type { TranscriptActivity } from "../state/events";
+import type { ConnectionStatus } from "../state/store";
 import { IconButton } from "./ui";
 
-const statusIcons: Record<string, string> = {
-  Disconnected: cloudOfflineOutline,
-  Connecting: syncOutline,
-  Connected: checkmarkOutline,
-  Reconnecting: syncOutline,
-  Unauthorized: lockClosedOutline,
-  Offline: alertCircleOutline,
-  Compacting: layersOutline,
-  Preparing: constructOutline,
-  Prepared: checkmarkOutline,
-  Running: terminalOutline,
-  Searching: searchOutline,
-  Responding: chatbubbleEllipsesOutline,
-  Working: ellipsisHorizontalOutline,
-  Failed: alertCircleOutline,
-  Stopped: stopOutline,
-  Idle: checkmarkCircleOutline,
+export type PresenceTone = "idle" | "active" | "attention" | "offline" | "pending";
+export interface Presence {
+  label: string;
+  tone: PresenceTone;
+}
+
+const lowContext = 20;
+
+export function contextRemaining(context: Snapshot["context"]): number | null {
+  if (!context || context.estimated_tokens === null || context.context_limit <= 0) return null;
+  return (
+    100 -
+    Math.min(100, Math.max(0, Math.round((context.estimated_tokens / context.context_limit) * 100)))
+  );
+}
+
+export function presence({
+  status,
+  snapshot,
+  activity,
+  sending,
+}: {
+  status: ConnectionStatus;
+  snapshot: Snapshot | null;
+  activity: TranscriptActivity | null;
+  sending: boolean;
+}): Presence {
+  if (status === "connecting") return { label: "Connecting…", tone: "pending" };
+  if (status === "reconnecting") return { label: "Reconnecting…", tone: "pending" };
+  if (status === "unauthorized") return { label: "Unauthorized", tone: "offline" };
+  if (status !== "connected" || !snapshot) return { label: "Offline", tone: "offline" };
+  if (snapshot.approvals.length) return { label: "Waiting for approval", tone: "attention" };
+  if (snapshot.running || sending) {
+    if (activity === "compacting") return { label: "Compacting context…", tone: "active" };
+    const tool = snapshot.tools.find((item) => item.status === "running" && !item.paused);
+    if (tool) return { label: `Running ${tool.name}…`, tone: "active" };
+    if (
+      snapshot.assistant?.content.some(
+        (content) => content.type === "hosted_tool" && content.status === "in_progress",
+      )
+    )
+      return { label: "Searching the web…", tone: "active" };
+    if (snapshot.assistant?.content.some((content) => content.type === "text" && content.text))
+      return { label: "Typing…", tone: "active" };
+    return { label: "Working…", tone: "active" };
+  }
+  const remaining = contextRemaining(snapshot.context);
+  if (remaining !== null && remaining <= lowContext)
+    return { label: `Online · ${remaining}% context left`, tone: "attention" };
+  return { label: "Online", tone: "idle" };
+}
+
+const dotTones: Record<PresenceTone, string> = {
+  idle: "bg-emerald-500",
+  active: "bg-foreground animate-pulse motion-reduce:animate-none",
+  attention: "bg-amber-500",
+  offline: "bg-rose-500",
+  pending: "bg-muted-foreground animate-pulse motion-reduce:animate-none",
 };
 
-const statusColors: Record<string, string> = {
-  Disconnected: "text-muted-foreground",
-  Connecting: "text-sky-600 dark:text-sky-400",
-  Connected: "text-emerald-600 dark:text-emerald-400",
-  Reconnecting: "text-sky-600 dark:text-sky-400",
-  Unauthorized: "text-rose-600 dark:text-rose-400",
-  Offline: "text-rose-600 dark:text-rose-400",
-  Compacting: "text-sky-600 dark:text-sky-400",
-  Preparing: "text-sky-600 dark:text-sky-400",
-  Prepared: "text-sky-600 dark:text-sky-400",
-  Running: "text-sky-600 dark:text-sky-400",
-  Searching: "text-sky-600 dark:text-sky-400",
-  Responding: "text-sky-600 dark:text-sky-400",
-  Working: "text-sky-600 dark:text-sky-400",
-  Failed: "text-rose-600 dark:text-rose-400",
-  Stopped: "text-muted-foreground",
-  Idle: "text-emerald-600 dark:text-emerald-400",
-};
+const buds = [
+  { x: 65, y: 15, scale: 1 },
+  { x: 35, y: 35, scale: 0.85 },
+  { x: 85, y: 45, scale: 0.85 },
+];
+
+// Vector redraw of Kana's pixel logo: one sprig, three buds.
+export function KanaMark({ height = 30 }: { height?: number }) {
+  return (
+    <svg className="shrink-0" height={height} viewBox="18 0 86 72" aria-hidden="true">
+      <g fill="none" stroke="#52a742" strokeWidth="5.5" strokeLinecap="round">
+        <path d="M44 67C54 57 65 49 65 25" />
+        <path d="M65 37Q55 33 42 35" />
+        <path d="M64 48Q73 48 79 45" />
+      </g>
+      {buds.map((bud) => (
+        <g key={bud.x} transform={`translate(${bud.x} ${bud.y}) scale(${bud.scale})`}>
+          <g fill="#9edc5b">
+            <circle cy="-7" r="5.2" />
+            <circle cx="7" r="5.2" />
+            <circle cy="7" r="5.2" />
+            <circle cx="-7" r="5.2" />
+          </g>
+          <circle r="4.6" fill="#58b849" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function ContextMeter({ remaining }: { remaining: number | null }) {
+  return (
+    <div className="px-3 pb-3 pt-2.5">
+      <div className="flex items-baseline justify-between text-[13px]">
+        <span className="text-muted-foreground">Context</span>
+        <span className="tabular-nums text-foreground" title="Context remaining">
+          {remaining === null ? "Unavailable" : `${remaining}% left`}
+        </span>
+      </div>
+      <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className={`h-full rounded-full ${remaining !== null && remaining <= lowContext ? "bg-amber-500" : "bg-foreground/70"}`}
+          style={{ width: `${remaining ?? 0}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 export function Toolbar({
-  status,
+  presence,
   context,
   disabled,
   onSessions,
   onSettings,
 }: {
-  status: string;
+  presence: Presence;
   context: Snapshot["context"];
   disabled: boolean;
   onSessions: () => void;
   onSettings: () => void;
 }) {
-  const remaining =
-    context && context.estimated_tokens !== null && context.context_limit > 0
-      ? 100 -
-        Math.min(
-          100,
-          Math.max(0, Math.round((context.estimated_tokens / context.context_limit) * 100)),
-        )
-      : null;
+  const [menuEvent, setMenuEvent] = useState<Event>();
+  function choose(action: () => void) {
+    setMenuEvent(undefined);
+    action();
+  }
   return (
-    <div className="grid min-h-16 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-4">
-      <div className="relative justify-self-start">
-        <div className="flex items-center gap-0.5" role="img" aria-label="Kana">
-          <span className="agent-mark small">K</span>
-          <span className="brand-name">ana</span>
-        </div>
-        {remaining !== null && (
+    <div className="flex min-h-16 items-center gap-3 px-4">
+      <KanaMark />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="text-[15px] font-semibold leading-5 tracking-tight">Kana</span>
+        <div
+          className="flex min-w-0 items-center gap-1.5 text-[13px] leading-[18px] text-muted-foreground"
+          role="status"
+        >
           <span
-            className="absolute bottom-0 left-full ml-0.5 text-[10px] font-normal leading-none text-muted-foreground tabular-nums"
-            title="Context remaining"
-          >
-            <span className="sr-only">Context remaining: </span>
-            {remaining}%
-          </span>
-        )}
+            className={`size-1.5 shrink-0 rounded-full ${dotTones[presence.tone]}`}
+            aria-hidden="true"
+          />
+          <span className="truncate">{presence.label}</span>
+        </div>
       </div>
-      <div
-        className="grid max-w-32 items-center text-base font-bold leading-6"
-        role="status"
-        title={status}
+      <IconButton
+        className="-mr-2"
+        icon={Ellipsis}
+        label="Menu"
+        onClick={(event) => setMenuEvent(event.nativeEvent)}
+      />
+      <IonPopover
+        isOpen={Boolean(menuEvent)}
+        event={menuEvent}
+        onDidDismiss={() => setMenuEvent(undefined)}
+        className="app-menu"
+        alignment="end"
       >
-        <AnimatePresence initial={false}>
-          <motion.span
-            key={status}
-            className={`col-start-1 row-start-1 flex min-w-0 items-center justify-center gap-2 ${statusColors[status]}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <IonIcon
-              icon={statusIcons[status]}
-              className="size-[18px] shrink-0"
-              aria-hidden="true"
-            />
-            <span className="truncate">{status}</span>
-          </motion.span>
-        </AnimatePresence>
-      </div>
-      <div className="flex justify-self-end">
-        <IconButton
-          icon={layersOutline}
-          label="Sessions"
-          disabled={disabled}
-          onClick={onSessions}
-        />
-        <IconButton
-          icon={settingsOutline}
-          label="Connection settings"
-          disabled={disabled}
-          onClick={onSettings}
-        />
-      </div>
+        <div className="flex flex-col p-1.5">
+          <ContextMeter remaining={contextRemaining(context)} />
+          <div className="mx-3 my-1 h-px bg-border" />
+          <MenuItem icon={History} disabled={disabled} onClick={() => choose(onSessions)}>
+            Sessions
+          </MenuItem>
+          <MenuItem icon={Plug} disabled={disabled} onClick={() => choose(onSettings)}>
+            Connection
+          </MenuItem>
+        </div>
+      </IonPopover>
     </div>
+  );
+}
+
+export function MenuItem({
+  icon: Icon,
+  children,
+  ...props
+}: {
+  icon: LucideIcon;
+  children: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="flex items-center gap-3 rounded-lg bg-transparent px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-muted disabled:opacity-40 motion-reduce:transition-none"
+      {...props}
+    >
+      <Icon className="size-4 text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
+      {children}
+    </button>
   );
 }
 
@@ -140,7 +203,7 @@ export function ModalHeader({ title, onClose }: { title: string; onClose: () => 
   return (
     <div className="flex min-h-16 items-center justify-between px-5">
       <h2 className="m-0 text-lg font-semibold tracking-tight">{title}</h2>
-      <IconButton icon={closeOutline} label="Close" onClick={onClose} />
+      <IconButton className="-mr-2" icon={X} label="Close" onClick={onClose} />
     </div>
   );
 }

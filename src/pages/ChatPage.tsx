@@ -1,6 +1,6 @@
 import { IonContent, IonHeader, IonModal, IonPage } from "@ionic/react";
 import { useIsMutating, useMutation } from "@tanstack/react-query";
-import { refreshOutline, settingsOutline } from "ionicons/icons";
+import { RefreshCw, Settings } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { ApprovalCard } from "../components/ApprovalCard";
@@ -8,19 +8,10 @@ import { Composer } from "../components/Composer";
 import { ConnectionForm } from "../components/ConnectionForm";
 import { MessageList } from "../components/MessageList";
 import { SessionsModal } from "../components/SessionsModal";
-import { ModalHeader, Toolbar } from "../components/Toolbar";
+import { ModalHeader, presence, Toolbar } from "../components/Toolbar";
 import { IconButton, Spinner } from "../components/ui";
 import { currentApi, currentSessionId, handleActionError, reconnect } from "../state/connection";
 import { useClientStore } from "../state/store";
-
-const connectionLabels = {
-  disconnected: "Disconnected",
-  connecting: "Connecting",
-  connected: "Connected",
-  reconnecting: "Reconnecting",
-  unauthorized: "Unauthorized",
-  error: "Offline",
-};
 
 export function ChatPage() {
   const snapshot = useClientStore((state) => state.snapshot);
@@ -65,37 +56,18 @@ export function ChatPage() {
   });
   const active = running || send.isPending;
   const canSend = online && Boolean(snapshot?.session) && !active && !busy && Boolean(draft.trim());
-  const statusLabel = !online
-    ? connectionLabels[status]
-    : activity === "compacting"
-      ? "Compacting"
-      : activity === "preparing"
-        ? "Preparing"
-        : activity === "prepared"
-          ? "Prepared"
-          : active
-            ? snapshot?.tools.some((tool) => tool.status === "running")
-              ? "Running"
-              : snapshot?.assistant?.content.some(
-                    (content) => content.type === "hosted_tool" && content.status === "in_progress",
-                  )
-                ? "Searching"
-                : snapshot?.assistant?.content.some(
-                      (content) => content.type === "text" && content.text,
-                    )
-                  ? "Responding"
-                  : "Working"
-            : snapshot?.run?.status === "failed" || snapshot?.run?.outcome === "error"
-              ? "Failed"
-              : snapshot?.run?.outcome === "aborted"
-                ? "Stopped"
-                : "Idle";
+  const currentPresence = presence({
+    status,
+    snapshot,
+    activity,
+    sending: send.isPending,
+  });
 
   return (
     <IonPage>
       <IonHeader className="app-header">
         <Toolbar
-          status={statusLabel}
+          presence={currentPresence}
           context={snapshot?.context}
           disabled={busy}
           onSessions={() => setSessionsOpen(true)}
@@ -111,9 +83,7 @@ export function ChatPage() {
             >
               <div className="min-w-0 flex-1 break-words">{connectionError}</div>
               <IconButton
-                icon={
-                  status === "unauthorized" || status === "error" ? settingsOutline : refreshOutline
-                }
+                icon={status === "unauthorized" || status === "error" ? Settings : RefreshCw}
                 label={
                   status === "unauthorized" || status === "error"
                     ? "Connection settings"

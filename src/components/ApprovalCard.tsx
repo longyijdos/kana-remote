@@ -1,16 +1,11 @@
-import { IonIcon, IonPopover } from "@ionic/react";
+import { IonPopover } from "@ionic/react";
 import { useMutation } from "@tanstack/react-query";
-import {
-  checkmarkOutline,
-  closeOutline,
-  ellipsisHorizontal,
-  shieldCheckmarkOutline,
-} from "ionicons/icons";
+import { Check, Ellipsis, ShieldCheck, X } from "lucide-react";
 import { useIsPresent } from "motion/react";
 import { useState } from "react";
 import type { Approval, ApprovalDecision } from "../api/types";
 import { currentApi, handleActionError } from "../state/connection";
-import { formatValue } from "./ToolCard";
+import { formatValue } from "./ToolRow";
 import { Button, IconButton, Spinner } from "./ui";
 
 export function ApprovalCard({ approval, disabled }: { approval: Approval; disabled: boolean }) {
@@ -31,7 +26,7 @@ export function ApprovalCard({ approval, disabled }: { approval: Approval; disab
   return (
     <section className="surface-card p-4" aria-label="Tool approval">
       <div className="flex items-center gap-2.5">
-        <IonIcon className="size-5" icon={shieldCheckmarkOutline} aria-hidden="true" />
+        <ShieldCheck className="size-5" strokeWidth={1.75} aria-hidden="true" />
         <strong className="text-base font-medium">Approval</strong>
         <span className="ml-auto text-sm text-muted-foreground">{approval.agent.label}</span>
       </div>
@@ -42,7 +37,7 @@ export function ApprovalCard({ approval, disabled }: { approval: Approval; disab
       <div className="mt-4 flex items-center gap-2">
         <IconButton
           className="mr-auto"
-          icon={ellipsisHorizontal}
+          icon={Ellipsis}
           label="More approval options"
           disabled={unavailable}
           onClick={(event) => setMenuEvent(event.nativeEvent)}
@@ -53,14 +48,14 @@ export function ApprovalCard({ approval, disabled }: { approval: Approval; disab
           disabled={unavailable}
           onClick={() => choose("reject")}
         >
-          <IonIcon className="size-4" icon={closeOutline} aria-hidden="true" />
+          <X className="size-4" strokeWidth={2} aria-hidden="true" />
           Reject
         </Button>
         <Button disabled={unavailable} onClick={() => choose("allow")}>
           {decision.isPending ? (
             <Spinner />
           ) : (
-            <IonIcon className="size-4" icon={checkmarkOutline} aria-hidden="true" />
+            <Check className="size-4" strokeWidth={2} aria-hidden="true" />
           )}
           Allow once
         </Button>
@@ -69,7 +64,7 @@ export function ApprovalCard({ approval, disabled }: { approval: Approval; disab
         isOpen={Boolean(menuEvent)}
         event={menuEvent}
         onDidDismiss={() => setMenuEvent(undefined)}
-        className="approval-menu"
+        className="app-menu"
       >
         <div className="flex flex-col p-2">
           {approval.allow_always && (

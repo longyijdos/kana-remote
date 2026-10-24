@@ -1,5 +1,4 @@
-import { IonIcon } from "@ionic/react";
-import { arrowDownOutline, checkmarkOutline } from "ionicons/icons";
+import { ArrowDown } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
@@ -8,25 +7,33 @@ import { type TranscriptActivity, visibleMessages } from "../state/events";
 import { useClientStore } from "../state/store";
 import { CopyButton } from "./CopyButton";
 import { Markdown } from "./Markdown";
-import { Images, ToolCard } from "./ToolCard";
-import { IconButton, Spinner } from "./ui";
+import { Images, ToolRow } from "./ToolRow";
+import { IconButton } from "./ui";
 
 type TranscriptContext = {
   bottomInset: number;
   activity: TranscriptActivity | null;
 };
-const activityLabels = {
-  working: "Working…",
-  preparing: "Preparing tools…",
-  prepared: "Prepared tools",
-  compacting: "Compacting context…",
-};
+function TypingDots() {
+  return (
+    <span className="flex h-6 items-center gap-1" aria-hidden="true">
+      {[0, 1, 2].map((dot) => (
+        <motion.span
+          key={dot}
+          className="size-1.5 rounded-full bg-muted-foreground"
+          animate={{ opacity: [0.25, 1, 0.25] }}
+          transition={{ duration: 1.2, repeat: Infinity, delay: dot * 0.16, ease: "easeInOut" }}
+        />
+      ))}
+    </span>
+  );
+}
 
 function TranscriptFooter({ context }: { context: TranscriptContext }) {
   return (
     <>
       <AnimatePresence initial={false}>
-        {context.activity && (
+        {context.activity && context.activity !== "prepared" && (
           <motion.div
             key="activity"
             className="overflow-hidden"
@@ -34,26 +41,18 @@ function TranscriptFooter({ context }: { context: TranscriptContext }) {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
           >
-            <div className="mx-auto w-full max-w-3xl px-5 py-3 text-sm text-muted-foreground sm:px-6">
-              <div className="grid min-h-6">
-                <AnimatePresence initial={false}>
-                  <motion.div
-                    key={context.activity}
-                    className="col-start-1 row-start-1 flex items-center gap-2.5"
-                    role="status"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    {context.activity === "prepared" ? (
-                      <IonIcon icon={checkmarkOutline} />
-                    ) : (
-                      <Spinner />
-                    )}
-                    <span>{activityLabels[context.activity]}</span>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
+            <div
+              className="mx-auto flex w-full max-w-3xl px-5 py-2 text-sm text-muted-foreground sm:px-6"
+              role="status"
+            >
+              {context.activity === "compacting" ? (
+                <span className="leading-6">Compacting context…</span>
+              ) : (
+                <>
+                  <TypingDots />
+                  <span className="sr-only">Working</span>
+                </>
+              )}
             </div>
           </motion.div>
         )}
@@ -87,25 +86,26 @@ const MessageRow = memo(function MessageRow({
     .filter((content) => content.type === "text")
     .map((content) => content.text)
     .join("\n\n");
+  const toolsOnly = !message.content.some(
+    (content) => content.type === "text" && content.text.trim(),
+  );
   return (
-    <article className="mx-auto w-full max-w-3xl px-5 py-4 sm:px-6">
+    <article className={`mx-auto w-full max-w-3xl px-5 sm:px-6 ${toolsOnly ? "py-0.5" : "py-4"}`}>
       {message.content.map((content, index) => {
         if (content.type === "thinking") return null;
         if (content.type === "text")
           return content.text ? (
-            <Markdown
-              // biome-ignore lint/suspicious/noArrayIndexKey: Protocol content indexes are stable while streaming.
-              key={`text-${index}`}
-              text={content.text}
-              streaming={streaming}
-            />
+            // biome-ignore lint/suspicious/noArrayIndexKey: Protocol content indexes are stable while streaming.
+            <div key={`text-${index}`} className="my-3 first:mt-0 last:mb-0">
+              <Markdown text={content.text} streaming={streaming} />
+            </div>
           ) : null;
         if (content.type === "tool_call") {
           const state = snapshot.tools.find((item) => item.tool_call_id === content.id);
           const result = results.find((item) => item.toolCallId === content.id);
           if (!state && !result) return null;
           return (
-            <ToolCard
+            <ToolRow
               key={content.id}
               name={content.name}
               args={content.args}
@@ -115,7 +115,7 @@ const MessageRow = memo(function MessageRow({
           );
         }
         return (
-          <ToolCard
+          <ToolRow
             key={content.id}
             name={content.name}
             args={content.action}
@@ -239,7 +239,7 @@ export function MessageList({
           >
             <IconButton
               variant="secondary"
-              icon={arrowDownOutline}
+              icon={ArrowDown}
               label="Scroll to latest"
               onClick={() => {
                 setFollowing(true);

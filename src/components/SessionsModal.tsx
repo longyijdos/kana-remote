@@ -1,6 +1,6 @@
 import { createAnimation, IonContent, IonHeader, IonModal } from "@ionic/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { trashOutline } from "ionicons/icons";
+import { Trash2 } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import { useRef, useState } from "react";
 import { errorMessage } from "../api/client";
@@ -126,7 +126,7 @@ export function SessionsModal({
                   </button>
                   <IconButton
                     className="absolute right-2 top-1/2 -translate-y-1/2"
-                    icon={trashOutline}
+                    icon={Trash2}
                     label="Delete session"
                     disabled={unavailable}
                     busy={remove.isPending && remove.variables === session.id}
