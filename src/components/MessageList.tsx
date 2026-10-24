@@ -11,8 +11,8 @@ import {
   Target,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Virtuoso } from "react-virtuoso";
 import type { AssistantMessage, Snapshot, UserMessage } from "../api/types";
 import { type TranscriptActivity, visibleMessages } from "../state/events";
 import { describeUserMessage, type NoticeKind } from "../state/notices";
@@ -234,40 +234,74 @@ export function MessageList({
     [snapshot, displayAssistant],
   );
   const context = useMemo(() => ({ bottomInset, activity }), [bottomInset, activity]);
-  const virtuoso = useRef<VirtuosoHandle>(null);
+  const scroller = useRef<HTMLElement | null>(null);
   const following = useRef(true);
-  const listHeight = useRef(0);
-  const scrollPosition = useRef({ top: 0, height: 0 });
+  const animating = useRef(false);
+  const dragging = useRef(false);
+  const lastTop = useRef(0);
   const touchY = useRef<number | null>(null);
+  const lastOwnMessage = useRef<string | null | undefined>(undefined);
   const [showLatest, setShowLatest] = useState(false);
-  function setFollowing(value: boolean) {
+  const setFollowing = useCallback((value: boolean) => {
+    if (!value) animating.current = false;
+    if (following.current === value) return;
     following.current = value;
     setShowLatest(!value);
-  }
+  }, []);
+  // Pin to the real bottom, including the footer that reserves room for the composer.
+  const pin = useCallback(() => {
+    const element = scroller.current;
+    if (element && following.current && !animating.current)
+      element.scrollTop = element.scrollHeight;
+  }, []);
+  // Rows, the activity footer and the composer inset all change height without scrolling.
+  // Virtuoso's viewport is fixed at 100%, so watch the item list and footer inside it.
   useEffect(() => {
-    if (following.current && messages.length)
-      virtuoso.current?.scrollTo({
-        top: listHeight.current,
-        behavior: "auto",
-      });
-  }, [messages]);
+    const element = scroller.current;
+    const viewport = element?.firstElementChild;
+    if (!element || !viewport) return;
+    const observer = new ResizeObserver(pin);
+    observer.observe(element);
+    for (const child of viewport.children) observer.observe(child);
+    return () => observer.disconnect();
+  }, [pin]);
+  useEffect(() => {
+    const release = () => {
+      dragging.current = false;
+    };
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+    return () => {
+      window.removeEventListener("pointerup", release);
+      window.removeEventListener("pointercancel", release);
+    };
+  }, []);
+  useEffect(() => {
+    const own =
+      messages.findLast(
+        (message) => message.role === "user" && message.provenance.kind === "user_input",
+      )?.id ?? null;
+    if (lastOwnMessage.current !== undefined && own !== lastOwnMessage.current) {
+      setFollowing(true);
+      pin();
+    }
+    lastOwnMessage.current = own;
+  }, [messages, pin, setFollowing]);
   return (
     <div className="relative min-h-0 flex-1">
       <Virtuoso
-        ref={virtuoso}
+        scrollerRef={(element) => {
+          scroller.current = element instanceof HTMLElement ? element : null;
+        }}
         data={messages}
         context={context}
         components={listComponents}
         className="ion-content-scroll-host h-full overflow-x-hidden"
         initialTopMostItemIndex={
-          messages.length
-            ? { index: messages.length - 1, align: "end", offset: bottomInset }
-            : undefined
+          messages.length ? { index: messages.length - 1, align: "end" } : undefined
         }
-        totalListHeightChanged={(height) => {
-          listHeight.current = height;
-          if (following.current) virtuoso.current?.scrollTo({ top: height, behavior: "auto" });
-        }}
+        // Only the user's own gestures stop following; the list also scrolls itself while it
+        // measures rows, and those programmatic moves must not count as reading history.
         onWheelCapture={(event) => {
           if (event.deltaY < 0) setFollowing(false);
         }}
@@ -279,6 +313,9 @@ export function MessageList({
           if (touchY.current !== null && y > touchY.current) setFollowing(false);
           touchY.current = y;
         }}
+        onPointerDownCapture={(event) => {
+          if (event.target === event.currentTarget) dragging.current = true;
+        }}
         onKeyDownCapture={(event) => {
           if (
             event.target === event.currentTarget &&
@@ -288,13 +325,18 @@ export function MessageList({
             setFollowing(false);
         }}
         onScrollCapture={(event) => {
-          if (event.target !== event.currentTarget) return;
-          const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
-          const previous = scrollPosition.current;
-          if (scrollTop < previous.top && scrollHeight === previous.height) setFollowing(false);
-          else if (scrollTop > previous.top && Math.ceil(scrollTop + clientHeight) >= scrollHeight)
+          const element = event.currentTarget;
+          if (event.target !== element) return;
+          const top = element.scrollTop;
+          const distance = element.scrollHeight - top - element.clientHeight;
+          // Resume only when moving down onto the bottom: smooth wheel scrolling starts with
+          // tiny upward steps that are still within reach of the bottom.
+          if (dragging.current && top < lastTop.current) setFollowing(false);
+          else if (distance <= 2 && top >= lastTop.current) {
+            animating.current = false;
             setFollowing(true);
-          scrollPosition.current = { top: scrollTop, height: scrollHeight };
+          }
+          lastTop.current = top;
         }}
         computeItemKey={(_index, message) => message.id}
         itemContent={(_index, message) => (
@@ -320,11 +362,17 @@ export function MessageList({
               icon={ArrowDown}
               label="Scroll to latest"
               onClick={() => {
+                const element = scroller.current;
+                if (!element) return;
                 setFollowing(true);
-                virtuoso.current?.scrollTo({
-                  top: listHeight.current,
-                  behavior: "smooth",
-                });
+                animating.current = true;
+                element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
+                // Streaming keeps moving the bottom, so the smooth target goes stale; settle on
+                // the real bottom once the animation has had time to run.
+                window.setTimeout(() => {
+                  animating.current = false;
+                  pin();
+                }, 400);
               }}
             />
           </motion.div>
