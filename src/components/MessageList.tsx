@@ -25,6 +25,8 @@ import { IconButton } from "./ui";
 type TranscriptContext = {
   bottomInset: number;
   activity: TranscriptActivity | null;
+  live: UserMessage | AssistantMessage | null;
+  snapshot: Snapshot;
 };
 function TypingDots() {
   return (
@@ -44,6 +46,7 @@ function TypingDots() {
 function TranscriptFooter({ context }: { context: TranscriptContext }) {
   return (
     <>
+      {context.live && <MessageRow message={context.live} snapshot={context.snapshot} streaming />}
       <AnimatePresence initial={false}>
         {context.activity && context.activity !== "prepared" && (
           <motion.div
@@ -238,7 +241,19 @@ export function MessageList({
       ),
     [snapshot, displayAssistant],
   );
-  const context = useMemo(() => ({ bottomInset, activity }), [bottomInset, activity]);
+  // Virtuoso compensates any growth of its items while the user scrolls up, which yanks a
+  // reader back toward the bottom on every streamed line. The message still being written
+  // lives in the footer until its text has fully appeared, so only settled rows are items.
+  const liveId = displayAssistant?.id ?? snapshot.assistant?.id;
+  const live = messages.find((message) => message.id === liveId) ?? null;
+  const settled = useMemo(
+    () => (liveId ? messages.filter((message) => message.id !== liveId) : messages),
+    [messages, liveId],
+  );
+  const context = useMemo(
+    () => ({ bottomInset, activity, live, snapshot }),
+    [bottomInset, activity, live, snapshot],
+  );
   const scroller = useRef<HTMLElement | null>(null);
   const following = useRef(true);
   const animating = useRef(false);
@@ -298,12 +313,12 @@ export function MessageList({
         scrollerRef={(element) => {
           scroller.current = element instanceof HTMLElement ? element : null;
         }}
-        data={messages}
+        data={settled}
         context={context}
         components={listComponents}
         className="ion-content-scroll-host h-full overflow-x-hidden"
         initialTopMostItemIndex={
-          messages.length ? { index: messages.length - 1, align: "end" } : undefined
+          settled.length ? { index: settled.length - 1, align: "end" } : undefined
         }
         // Only the user's own gestures stop following; the list also scrolls itself while it
         // measures rows, and those programmatic moves must not count as reading history.
@@ -345,11 +360,7 @@ export function MessageList({
         }}
         computeItemKey={(_index, message) => message.id}
         itemContent={(_index, message) => (
-          <MessageRow
-            message={message}
-            snapshot={snapshot}
-            streaming={snapshot.assistant?.id === message.id || displayAssistant?.id === message.id}
-          />
+          <MessageRow message={message} snapshot={snapshot} streaming={false} />
         )}
       />
       <AnimatePresence initial={false}>
