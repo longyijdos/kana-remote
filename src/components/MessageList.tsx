@@ -11,9 +11,14 @@ import {
   Target,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Virtuoso } from "react-virtuoso";
-import type { AssistantMessage, Snapshot, UserMessage } from "../api/types";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type {
+  AssistantMessage,
+  Snapshot,
+  ToolResultMessage,
+  ToolState,
+  UserMessage,
+} from "../api/types";
 import { type TranscriptActivity, visibleMessages } from "../state/events";
 import { describeUserMessage, type NoticeKind } from "../state/notices";
 import { useClientStore } from "../state/store";
@@ -22,12 +27,6 @@ import { Markdown } from "./Markdown";
 import { HostedToolRow, Images, ToolRow } from "./ToolRow";
 import { IconButton } from "./ui";
 
-type TranscriptContext = {
-  bottomInset: number;
-  activity: TranscriptActivity | null;
-  live: UserMessage | AssistantMessage | null;
-  snapshot: Snapshot;
-};
 function TypingDots() {
   return (
     <span className="flex h-6 items-center gap-1" aria-hidden="true">
@@ -43,40 +42,35 @@ function TypingDots() {
   );
 }
 
-function TranscriptFooter({ context }: { context: TranscriptContext }) {
+function Activity({ activity }: { activity: TranscriptActivity | null }) {
   return (
-    <>
-      {context.live && <MessageRow message={context.live} snapshot={context.snapshot} streaming />}
-      <AnimatePresence initial={false}>
-        {context.activity && context.activity !== "prepared" && (
-          <motion.div
-            key="activity"
-            className="overflow-hidden"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+    <AnimatePresence initial={false}>
+      {activity && activity !== "prepared" && (
+        <motion.div
+          key="activity"
+          className="overflow-hidden"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+        >
+          <div
+            className="mx-auto flex w-full max-w-3xl px-5 py-2 text-sm text-muted-foreground sm:px-6"
+            role="status"
           >
-            <div
-              className="mx-auto flex w-full max-w-3xl px-5 py-2 text-sm text-muted-foreground sm:px-6"
-              role="status"
-            >
-              {context.activity === "compacting" ? (
-                <span className="leading-6">Compacting context…</span>
-              ) : (
-                <>
-                  <TypingDots />
-                  <span className="sr-only">Working</span>
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <div style={{ height: context.bottomInset }} aria-hidden="true" />
-    </>
+            {activity === "compacting" ? (
+              <span className="leading-6">Compacting context…</span>
+            ) : (
+              <>
+                <TypingDots />
+                <span className="sr-only">Working</span>
+              </>
+            )}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
-const listComponents = { Footer: TranscriptFooter };
 
 const noticeIcons: Record<NoticeKind, LucideIcon> = {
   wake: AlarmClock,
@@ -152,17 +146,20 @@ function UserRow({ message }: { message: UserMessage }) {
   );
 }
 
+// Rows only receive data that changes with their own content, so streaming text re-renders
+// the message being written and memo skips every other row.
 const MessageRow = memo(function MessageRow({
   message,
-  snapshot,
+  tools,
+  results,
   streaming,
 }: {
   message: UserMessage | AssistantMessage;
-  snapshot: Snapshot;
+  tools: ToolState[];
+  results: ReadonlyMap<string, ToolResultMessage>;
   streaming: boolean;
 }) {
   if (message.role === "user") return <UserRow message={message} />;
-  const results = snapshot.session?.messages.filter((item) => item.role === "tool") ?? [];
   const text = message.content
     .filter((content) => content.type === "text")
     .map((content) => content.text)
@@ -182,8 +179,8 @@ const MessageRow = memo(function MessageRow({
             </div>
           ) : null;
         if (content.type === "tool_call") {
-          const state = snapshot.tools.find((item) => item.tool_call_id === content.id);
-          const result = results.find((item) => item.toolCallId === content.id);
+          const state = tools.find((item) => item.tool_call_id === content.id);
+          const result = results.get(content.id);
           if (!state && !result) return null;
           return (
             <ToolRow
@@ -224,6 +221,8 @@ const MessageRow = memo(function MessageRow({
   );
 });
 
+const page = 60;
+
 export function MessageList({
   snapshot,
   activity,
@@ -241,48 +240,71 @@ export function MessageList({
       ),
     [snapshot, displayAssistant],
   );
-  // Virtuoso compensates any growth of its items while the user scrolls up, which yanks a
-  // reader back toward the bottom on every streamed line. The message still being written
-  // lives in the footer until its text has fully appeared, so only settled rows are items.
+  const sessionMessages = snapshot.session?.messages;
+  const results = useMemo(() => {
+    const map = new Map<string, ToolResultMessage>();
+    for (const message of sessionMessages ?? [])
+      if (message.role === "tool") map.set(message.toolCallId, message);
+    return map;
+  }, [sessionMessages]);
   const liveId = displayAssistant?.id ?? snapshot.assistant?.id;
-  const live = messages.find((message) => message.id === liveId) ?? null;
-  const settled = useMemo(
-    () => (liveId ? messages.filter((message) => message.id !== liveId) : messages),
-    [messages, liveId],
-  );
-  const context = useMemo(
-    () => ({ bottomInset, activity, live, snapshot }),
-    [bottomInset, activity, live, snapshot],
-  );
-  const scroller = useRef<HTMLElement | null>(null);
+  const [limit, setLimit] = useState(page);
+  const rows = messages.length > limit ? messages.slice(-limit) : messages;
+  const hidden = messages.length - rows.length;
+
+  const scroller = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
   const following = useRef(true);
   const animating = useRef(false);
   const dragging = useRef(false);
   const lastTop = useRef(0);
   const touchY = useRef<number | null>(null);
   const lastOwnMessage = useRef<string | null | undefined>(undefined);
+  const keepInPlace = useRef<{ row: Element; top: number } | null>(null);
   const [showLatest, setShowLatest] = useState(false);
   const setFollowing = useCallback((value: boolean) => {
     if (!value) animating.current = false;
+    // Back at the latest message, release any history the reader loaded.
+    if (value) setLimit(page);
     if (following.current === value) return;
     following.current = value;
     setShowLatest(!value);
   }, []);
-  // Pin to the real bottom, including the footer that reserves room for the composer.
+  // Pin to the real bottom, including the spacer that reserves room for the composer.
+  // A finger on the list holds pinning until the gesture is known; otherwise content that
+  // grows during the touch slop pulls the list down just as a drag begins.
   const pin = useCallback(() => {
     const element = scroller.current;
-    if (element && following.current && !animating.current)
+    if (element && following.current && !animating.current && touchY.current === null)
       element.scrollTop = element.scrollHeight;
   }, []);
-  // Rows, the activity footer and the composer inset all change height without scrolling.
-  // Virtuoso's viewport is fixed at 100%, so watch the item list and footer inside it.
+  useLayoutEffect(pin, [pin]);
+  // Browsers skip scroll anchoring at offset 0, which is exactly where "Show earlier" sits,
+  // so keep the previously first row where it was once older rows are inserted above it.
+  // The inserted rows settle to content-visibility's remembered sizes over the next frames.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Runs after each window change.
+  useLayoutEffect(() => {
+    const element = scroller.current;
+    const anchor = keepInPlace.current;
+    keepInPlace.current = null;
+    if (!element || !anchor) return;
+    let frames = 4;
+    let frame = 0;
+    const settle = () => {
+      const shift = anchor.row.getBoundingClientRect().top - anchor.top;
+      if (Math.abs(shift) >= 1) element.scrollTop += shift;
+      if (--frames > 0) frame = requestAnimationFrame(settle);
+    };
+    settle();
+    return () => cancelAnimationFrame(frame);
+  }, [limit]);
+  // Rows, the activity indicator and the composer inset all change height without scrolling.
   useEffect(() => {
     const element = scroller.current;
-    const viewport = element?.firstElementChild;
-    if (!element || !viewport) return;
+    if (!element || !content.current) return;
     const observer = new ResizeObserver(pin);
     observer.observe(element);
-    for (const child of viewport.children) observer.observe(child);
+    observer.observe(content.current);
     return () => observer.disconnect();
   }, [pin]);
   useEffect(() => {
@@ -309,19 +331,12 @@ export function MessageList({
   }, [messages, pin, setFollowing]);
   return (
     <div className="relative min-h-0 flex-1">
-      <Virtuoso
-        scrollerRef={(element) => {
-          scroller.current = element instanceof HTMLElement ? element : null;
-        }}
-        data={settled}
-        context={context}
-        components={listComponents}
-        className="ion-content-scroll-host h-full overflow-x-hidden"
-        initialTopMostItemIndex={
-          settled.length ? { index: settled.length - 1, align: "end" } : undefined
-        }
-        // Only the user's own gestures stop following; the list also scrolls itself while it
-        // measures rows, and those programmatic moves must not count as reading history.
+      <div
+        ref={scroller}
+        data-transcript=""
+        className="ion-content-scroll-host h-full overflow-y-auto overflow-x-hidden overscroll-contain"
+        // Only the user's own gestures stop following; content growth and the browser's own
+        // scroll adjustments must not count as reading history.
         onWheelCapture={(event) => {
           if (event.deltaY < 0) setFollowing(false);
         }}
@@ -332,6 +347,15 @@ export function MessageList({
           const y = event.touches[0].clientY;
           if (touchY.current !== null && y > touchY.current) setFollowing(false);
           touchY.current = y;
+        }}
+        onTouchEndCapture={(event) => {
+          if (event.touches.length) return;
+          touchY.current = null;
+          pin();
+        }}
+        onTouchCancelCapture={() => {
+          touchY.current = null;
+          pin();
         }}
         onPointerDownCapture={(event) => {
           if (event.target === event.currentTarget) dragging.current = true;
@@ -344,9 +368,8 @@ export function MessageList({
           )
             setFollowing(false);
         }}
-        onScrollCapture={(event) => {
+        onScroll={(event) => {
           const element = event.currentTarget;
-          if (event.target !== element) return;
           const top = element.scrollTop;
           const distance = element.scrollHeight - top - element.clientHeight;
           // Resume only when moving down onto the bottom: smooth wheel scrolling starts with
@@ -358,11 +381,38 @@ export function MessageList({
           }
           lastTop.current = top;
         }}
-        computeItemKey={(_index, message) => message.id}
-        itemContent={(_index, message) => (
-          <MessageRow message={message} snapshot={snapshot} streaming={false} />
-        )}
-      />
+      >
+        <div ref={content}>
+          {hidden > 0 && (
+            <div className="flex justify-center pb-2 pt-4">
+              <button
+                type="button"
+                className="rounded-full bg-muted/70 px-4 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground motion-reduce:transition-none"
+                onClick={() => {
+                  const row = content.current?.querySelector(".transcript-row");
+                  if (row) keepInPlace.current = { row, top: row.getBoundingClientRect().top };
+                  setFollowing(false);
+                  setLimit((value) => value + page);
+                }}
+              >
+                Show earlier messages
+              </button>
+            </div>
+          )}
+          {rows.map((message) => (
+            <div key={message.id} className="transcript-row">
+              <MessageRow
+                message={message}
+                tools={snapshot.tools}
+                results={results}
+                streaming={message.id === liveId}
+              />
+            </div>
+          ))}
+          <Activity activity={activity} />
+          <div style={{ height: bottomInset }} aria-hidden="true" />
+        </div>
+      </div>
       <AnimatePresence initial={false}>
         {showLatest && (
           <motion.div

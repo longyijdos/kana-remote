@@ -74,6 +74,11 @@
 #root {
   height: 100%;
 }
+/* Off-screen transcript rows skip layout and paint; "auto" keeps their last measured size. */
+.transcript-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 160px;
+}
 @layer base {
   *,
   ::before,

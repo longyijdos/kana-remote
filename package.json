@@ -31,7 +31,6 @@
     "motion": "^14.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-virtuoso": "^4.18.16",
     "streamdown": "^2.7.0",
     "zustand": "^5.0.15"
   },
