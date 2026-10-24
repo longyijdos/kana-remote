@@ -2,6 +2,7 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "@ionic/react/css/normalize.css" layer(base);
 @import "@ionic/react/css/typography.css" layer(base);
+@import "katex/dist/katex.min.css" layer(components);
 @import "tailwindcss/utilities.css" layer(utilities);
 @source "../node_modules/streamdown/dist/*.js";
 @source "../node_modules/@streamdown/code/dist/*.js";
@@ -296,6 +297,12 @@ ion-modal.confirmation-modal.modal-default.show-modal.overlay-hidden
   max-width: 100%;
   height: auto;
   border-radius: 12px;
+}
+.markdown .katex-display {
+  margin: 16px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
 }
 .markdown hr {
   margin: 24px 0;

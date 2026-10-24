@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Markdown } from "../src/components/Markdown";
+import { normalizeMathDelimiters } from "../src/components/markdown-math";
 
 function render(text: string, streaming = false) {
   return renderToStaticMarkup(<Markdown text={text} streaming={streaming} />);
@@ -28,6 +29,21 @@ describe("Markdown rendering", () => {
     expect(html).toMatch(/data-streamdown="strong">中文文本（带括号）。<\/span>/);
     expect(html).toContain("<table");
     expect(html).toMatch(/<td\b[^>]*>1<\/td>/);
+  });
+
+  test("renders all four LaTeX delimiters but leaves prices and code alone", () => {
+    const html = render(
+      "Inline $x^2$ and \\(y_1\\).\n\n$$\\frac{a}{b}$$\n\n\\[\nE = mc^2\n\\]\n\nIt costs $5 and $10.",
+    );
+    expect(html.match(/class="katex"/g)?.length).toBe(4);
+    expect(html.match(/class="katex-display"/g)?.length).toBe(2);
+    expect(html).toContain("It costs $5 and $10.");
+    expect(normalizeMathDelimiters("Run echo $HOME$PATH, then $a+b$ and \\(c\\).")).toBe(
+      "Run echo $HOME$PATH, then $$a+b$$ and $$c$$.",
+    );
+    expect(normalizeMathDelimiters("Use `\\(x\\)`.\n\n```\n\\[y\\]\n```")).toBe(
+      "Use `\\(x\\)`.\n\n```\n\\[y\\]\n```",
+    );
   });
 
   test("sanitizes raw HTML and unsafe link protocols", () => {

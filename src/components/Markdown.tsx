@@ -1,10 +1,12 @@
 import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
+import { math } from "@streamdown/math";
 import { memo } from "react";
 import { type Components, type ControlsConfig, Streamdown } from "streamdown";
 import { CodeCard } from "./CodeCard";
+import { normalizeMathDelimiters } from "./markdown-math";
 
-const plugins = { code, cjk };
+const plugins = { code, cjk, math };
 const controls: ControlsConfig = {
   code: { copy: true, download: false },
   table: false,
@@ -50,7 +52,7 @@ export const Markdown = memo(function Markdown({
       controls={controls}
       lineNumbers={false}
     >
-      {text}
+      {normalizeMathDelimiters(text)}
     </Streamdown>
   );
 });
