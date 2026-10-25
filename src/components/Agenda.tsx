@@ -22,7 +22,7 @@ export function AgendaStrip({ summary, onOpen }: { summary: AgendaSummary; onOpe
   return (
     <button
       type="button"
-      className="surface-card mb-2 flex max-w-full items-center gap-3 rounded-full px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground motion-reduce:transition-none"
+      className="surface-card mx-2 mb-2 flex max-w-[calc(100%-1rem)] items-center gap-3 rounded-full px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground motion-reduce:transition-none"
       aria-label="Open agenda"
       onClick={onOpen}
     >
@@ -327,15 +327,7 @@ export function AgendaModal({
     useClientStore((state) => state.status === "connected") && Boolean(snapshot?.session);
   const todos = snapshot?.todo ?? [];
   return (
-    // A bottom sheet rather than a page: it is opened often and dismissed with a swipe.
-    <IonModal
-      isOpen={open}
-      onDidDismiss={onClose}
-      className="agenda-sheet"
-      breakpoints={[0, 0.6, 1]}
-      initialBreakpoint={0.6}
-      expandToScroll={false}
-    >
+    <IonModal isOpen={open} onDidDismiss={onClose} className="sheet-modal">
       <IonHeader className="app-header">
         <ModalHeader title="Agenda" onClose={onClose} />
       </IonHeader>

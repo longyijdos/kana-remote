@@ -74,6 +74,7 @@ export function ChatPage() {
           presence={currentPresence}
           context={snapshot?.context}
           disabled={busy}
+          onAgenda={() => setAgendaOpen(true)}
           onSessions={() => setSessionsOpen(true)}
           onSettings={() => setSettingsOpen(true)}
         />
@@ -151,7 +152,6 @@ export function ChatPage() {
               onChange={setDraft}
               onSend={() => send.mutate(draft)}
               onStop={() => stop.mutate()}
-              onAgenda={() => setAgendaOpen(true)}
               active={active}
               pending={send.isPending || stop.isPending}
               canSend={canSend}
