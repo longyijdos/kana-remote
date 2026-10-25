@@ -421,7 +421,14 @@ ion-modal.confirmation-modal.modal-default.show-modal.overlay-hidden
   margin-bottom: 10px;
 }
 
+.agenda-sheet {
+  --border-radius: 20px;
+}
+
 @media (min-width: 768px) {
+  .agenda-sheet {
+    --width: 560px;
+  }
   .sheet-modal {
     --width: 520px;
     --height: 680px;

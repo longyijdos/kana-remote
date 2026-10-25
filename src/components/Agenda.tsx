@@ -327,7 +327,15 @@ export function AgendaModal({
     useClientStore((state) => state.status === "connected") && Boolean(snapshot?.session);
   const todos = snapshot?.todo ?? [];
   return (
-    <IonModal isOpen={open} onDidDismiss={onClose} className="sheet-modal">
+    // A bottom sheet rather than a page: it is opened often and dismissed with a swipe.
+    <IonModal
+      isOpen={open}
+      onDidDismiss={onClose}
+      className="agenda-sheet"
+      breakpoints={[0, 0.6, 1]}
+      initialBreakpoint={0.6}
+      expandToScroll={false}
+    >
       <IonHeader className="app-header">
         <ModalHeader title="Agenda" onClose={onClose} />
       </IonHeader>

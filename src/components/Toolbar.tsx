@@ -1,5 +1,5 @@
 import { IonPopover } from "@ionic/react";
-import { CalendarClock, Ellipsis, History, type LucideIcon, Plug, X } from "lucide-react";
+import { Ellipsis, History, type LucideIcon, Plug, X } from "lucide-react";
 import { useState } from "react";
 import type { Snapshot } from "../api/types";
 import type { TranscriptActivity } from "../state/events";
@@ -126,14 +126,12 @@ export function Toolbar({
   presence,
   context,
   disabled,
-  onAgenda,
   onSessions,
   onSettings,
 }: {
   presence: Presence;
   context: Snapshot["context"];
   disabled: boolean;
-  onAgenda: () => void;
   onSessions: () => void;
   onSettings: () => void;
 }) {
@@ -174,9 +172,6 @@ export function Toolbar({
         <div className="flex flex-col p-1.5">
           <ContextMeter remaining={contextRemaining(context)} />
           <div className="mx-3 my-1 h-px bg-border" />
-          <MenuItem icon={CalendarClock} onClick={() => choose(onAgenda)}>
-            Agenda
-          </MenuItem>
           <MenuItem icon={History} disabled={disabled} onClick={() => choose(onSessions)}>
             Sessions
           </MenuItem>
