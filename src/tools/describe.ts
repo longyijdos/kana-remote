@@ -32,8 +32,8 @@ export type ToolBlock =
   | { kind: "markdown"; label: string; text: string }
   | { kind: "terminal"; command: string; output?: string }
   | { kind: "lines"; label: string; start: number; lines: string[] }
-  /** `glossary` lists identifiers with prose descriptions instead of labeled values. */
-  | { kind: "fields"; rows: [label: string, value: string][]; glossary?: boolean }
+  | { kind: "fields"; rows: [label: string, value: string][] }
+  | { kind: "catalog"; items: { name: string; description: string }[]; truncated: boolean }
   | { kind: "diff"; label: string; rows: DiffRow[] }
   | { kind: "matches"; groups: MatchGroup[]; truncated: boolean }
   | { kind: "files"; entries: FileEntry[]; truncated: boolean }
@@ -580,15 +580,15 @@ export function inputBlocks(call: ToolCallInput): ToolBlock[] {
     case "job_list":
       return [];
     case "schedule_wake":
-      return fields([
-        ["When", toolTarget(call)],
-        ["Message", string(args, "message")],
-      ]);
+      return [
+        ...fields([["When", toolTarget(call)]]),
+        ...prose("Message", string(args, "message")),
+      ];
     case "update_goal":
-      return fields([
-        ["Status", string(args, "status")],
-        ["Detail", string(args, "detail")],
-      ]);
+      return [
+        ...fields([["Status", string(args, "status")]]),
+        ...prose("Detail", string(args, "detail")),
+      ];
     case "todo_write": {
       const items = todoItems(args);
       return items ? [{ kind: "todos", items }] : [];
@@ -718,11 +718,12 @@ export function outputBlocks(call: ToolCallInput, outcome: ToolOutcome): ToolBlo
     case "mcp_list_tools": {
       const tools = array(result, "tools");
       if (!tools) return text("Output", content);
-      const rows = tools.map((tool): [string, string] => [
-        string(tool, "name") ?? "",
-        string(tool, "description") ?? "",
-      ]);
-      return rows.length ? [{ kind: "fields", rows, glossary: true }] : [];
+      const items = tools.map((tool) => ({
+        name: string(tool, "name") ?? "",
+        description: string(tool, "description") ?? "",
+      }));
+      const truncated = number(result, "nextOffset") !== undefined;
+      return items.length ? [{ kind: "catalog", items, truncated }] : [];
     }
     case "job_start": {
       const jobId = string(result, "jobId");

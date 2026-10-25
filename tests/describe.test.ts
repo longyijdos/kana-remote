@@ -229,6 +229,18 @@ describe("tool descriptions", () => {
     expect(outputBlocks(read, output)).toEqual([{ kind: "code", label: "Output", text: "a\nb" }]);
   });
 
+  test("lists MCP tools as a catalog and notes further pages", () => {
+    const call = { name: "mcp_list_tools", args: { name: "github" } };
+    const tools = [
+      { name: "search_issues", description: "Search issues and pull requests." },
+      { name: "get_me", description: "" },
+    ];
+    expect(outputBlocks(call, { result: { tools, nextOffset: 20 } })).toEqual([
+      { kind: "catalog", items: tools, truncated: true },
+    ]);
+    expect(outputBlocks(call, { result: { tools: [] } })).toEqual([]);
+  });
+
   test("titles approvals with the requester and action", () => {
     expect(approvalTitle(shell, "Kana")).toBe("Allow Kana to run a shell command?");
     expect(approvalTitle({ name: "fetch_weather", args: {} }, "researcher")).toBe(

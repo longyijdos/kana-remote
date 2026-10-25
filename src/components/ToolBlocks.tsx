@@ -1,4 +1,5 @@
 import { Check, Circle, CircleDot, File, Folder } from "lucide-react";
+import { useState } from "react";
 import type { DiffRow, TodoItem, ToolBlock } from "../tools/describe";
 import { formatBytes } from "../tools/describe";
 import { CopyButton } from "./CopyButton";
@@ -19,6 +20,25 @@ function Label({ text, copy }: { text: string; copy?: string }) {
       <span>{text}</span>
       {copy !== undefined && <CopyButton value={copy} small />}
     </div>
+  );
+}
+
+function CatalogItem({ name, description }: { name: string; description: string }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <li className="py-2">
+      <div className="font-mono text-[13px] leading-5 break-all select-text">{name}</div>
+      {description && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          className={`mt-0.5 w-full bg-transparent p-0 text-left text-[13px] leading-5 text-muted-foreground break-words ${expanded ? "block select-text" : "line-clamp-2"}`}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {description}
+        </button>
+      )}
+    </li>
   );
 }
 
@@ -223,17 +243,27 @@ function Block({ block, maxHeight }: { block: ToolBlock; maxHeight: string }) {
     case "fields":
       return (
         <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 py-1.5 text-[13px] leading-5">
-          {block.rows.map(([label, value]) => (
-            <div key={label} className="contents">
-              <dt className={block.glossary ? "font-mono" : "text-muted-foreground"}>{label}</dt>
-              <dd
-                className={`m-0 break-words select-text ${block.glossary ? "text-muted-foreground" : "font-mono"}`}
-              >
-                {value}
-              </dd>
+          {block.rows.map(([label, value], index) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: Labels repeat, e.g. job statuses.
+            <div key={index} className="contents">
+              <dt className="text-muted-foreground">{label}</dt>
+              <dd className="m-0 break-words select-text font-mono">{value}</dd>
             </div>
           ))}
         </dl>
+      );
+    case "catalog":
+      return (
+        <div className={`${scroll} ${maxHeight} py-0.5`}>
+          <ul className="m-0 list-none divide-y divide-border p-0">
+            {block.items.map((item) => (
+              <CatalogItem key={item.name} name={item.name} description={item.description} />
+            ))}
+          </ul>
+          {block.truncated && (
+            <p className="m-0 pb-1.5 text-xs text-muted-foreground">More tools available.</p>
+          )}
+        </div>
       );
     case "todos":
       return <Todos items={block.items} />;
