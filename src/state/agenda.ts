@@ -41,12 +41,16 @@ export function formatDue(dueAt: string, now = new Date()): string {
   return `${date.toLocaleDateString("en", { month: "short", day: "numeric" })} ${time}`;
 }
 
+/** "30 min", "2 h" or "1 h 30 min". */
+export function formatInterval(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours} h ${rest} min` : `${hours} h`;
+}
+
 /** "in 25 min", "in 2 h 5 min", or "due now" once the time has passed. */
 export function formatCountdown(dueAt: string, now = new Date()): string {
   const minutes = Math.ceil((new Date(dueAt).getTime() - now.getTime()) / 60_000);
-  if (minutes <= 0) return "due now";
-  if (minutes < 60) return `in ${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest ? `in ${hours} h ${rest} min` : `in ${hours} h`;
+  return minutes <= 0 ? "due now" : `in ${formatInterval(minutes)}`;
 }

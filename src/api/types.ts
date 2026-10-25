@@ -78,6 +78,8 @@ export interface ScheduledInput {
   message: string;
   origin: "agent" | "user";
   key?: string;
+  /** Present on repeating schedules. */
+  everyMinutes?: number;
 }
 
 export interface InputQueue {

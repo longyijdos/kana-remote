@@ -2,7 +2,9 @@ import { fetchEventSource } from "@microsoft/fetch-event-source";
 import type {
   ApprovalDecision,
   ConnectionSettings,
+  Goal,
   MessageReceipt,
+  ScheduledInput,
   ServerEvent,
   SessionsResponse,
   Snapshot,
@@ -104,6 +106,32 @@ export class KanaApi {
 
   abort(sessionId: string): Promise<{ stopping: true }> {
     return this.request("/v1/abort", { session_id: sessionId });
+  }
+
+  startGoal(sessionId: string, objective: string): Promise<{ goal: Goal | null }> {
+    return this.request("/v1/goal", { session_id: sessionId, objective });
+  }
+
+  cancelGoal(sessionId: string): Promise<{ cancelled: true }> {
+    return this.request("/v1/goal/cancel", { session_id: sessionId });
+  }
+
+  schedule(
+    sessionId: string,
+    input: { message: string; afterMinutes: number; repeat: boolean },
+  ): Promise<{ scheduled: ScheduledInput }> {
+    return this.request("/v1/schedules", {
+      session_id: sessionId,
+      message: input.message,
+      after_minutes: input.afterMinutes,
+      repeat: input.repeat,
+    });
+  }
+
+  cancelSchedule(sessionId: string, id: string): Promise<{ cancelled: "future" | "pending" }> {
+    return this.request(`/v1/schedules/${encodeURIComponent(id)}/cancel`, {
+      session_id: sessionId,
+    });
   }
 
   decide(sessionId: string, id: string, decision: ApprovalDecision): Promise<{ resolved: true }> {

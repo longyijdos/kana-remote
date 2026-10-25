@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Snapshot } from "../src/api/types";
-import { agendaSummary, formatCountdown, formatDue } from "../src/state/agenda";
+import { agendaSummary, formatCountdown, formatDue, formatInterval } from "../src/state/agenda";
 
 function snapshot(extra: Partial<Snapshot> = {}): Snapshot {
   return {
@@ -69,5 +69,6 @@ describe("agenda", () => {
     expect(formatCountdown(new Date(2026, 9, 25, 14, 5).toISOString(), now)).toBe("in 15 min");
     expect(formatCountdown(new Date(2026, 9, 25, 16, 0).toISOString(), now)).toBe("in 2 h 10 min");
     expect(formatCountdown(new Date(2026, 9, 25, 13, 0).toISOString(), now)).toBe("due now");
+    expect([30, 60, 90].map(formatInterval)).toEqual(["30 min", "1 h", "1 h 30 min"]);
   });
 });
