@@ -222,6 +222,8 @@ const MessageRow = memo(function MessageRow({
 });
 
 const page = 60;
+// How far from the bottom a reader must be before "Scroll to latest" appears.
+const latestThreshold = 160;
 
 export function MessageList({
   snapshot,
@@ -262,14 +264,29 @@ export function MessageList({
   const lastOwnMessage = useRef<string | null | undefined>(undefined);
   const keepInPlace = useRef<{ row: Element; top: number } | null>(null);
   const [showLatest, setShowLatest] = useState(false);
-  const setFollowing = useCallback((value: boolean) => {
-    if (!value) animating.current = false;
-    // Back at the latest message, release any history the reader loaded.
-    if (value) setLimit(page);
-    if (following.current === value) return;
-    following.current = value;
-    setShowLatest(!value);
+  // The button is for readers who are genuinely away from the latest message, not for
+  // a nudge at the bottom or a list too short to scroll.
+  const updateLatest = useCallback(() => {
+    const element = scroller.current;
+    const distance = element ? element.scrollHeight - element.scrollTop - element.clientHeight : 0;
+    setShowLatest(!following.current && distance > latestThreshold);
   }, []);
+  const setFollowing = useCallback(
+    (value: boolean) => {
+      if (!value) animating.current = false;
+      // Back at the latest message, release any history the reader loaded.
+      if (value) setLimit(page);
+      if (following.current === value) return;
+      following.current = value;
+      updateLatest();
+    },
+    [updateLatest],
+  );
+  // Gestures on a list that cannot scroll are not reading history.
+  const stopFollowing = useCallback(() => {
+    const element = scroller.current;
+    if (element && element.scrollHeight - element.clientHeight > 2) setFollowing(false);
+  }, [setFollowing]);
   // Pin to the real bottom, including the spacer that reserves room for the composer.
   // A finger on the list holds pinning until the gesture is known; otherwise content that
   // grows during the touch slop pulls the list down just as a drag begins.
@@ -302,11 +319,14 @@ export function MessageList({
   useEffect(() => {
     const element = scroller.current;
     if (!element || !content.current) return;
-    const observer = new ResizeObserver(pin);
+    const observer = new ResizeObserver(() => {
+      pin();
+      updateLatest();
+    });
     observer.observe(element);
     observer.observe(content.current);
     return () => observer.disconnect();
-  }, [pin]);
+  }, [pin, updateLatest]);
   useEffect(() => {
     const release = () => {
       dragging.current = false;
@@ -338,14 +358,14 @@ export function MessageList({
         // Only the user's own gestures stop following; content growth and the browser's own
         // scroll adjustments must not count as reading history.
         onWheelCapture={(event) => {
-          if (event.deltaY < 0) setFollowing(false);
+          if (event.deltaY < 0) stopFollowing();
         }}
         onTouchStartCapture={(event) => {
           touchY.current = event.touches[0].clientY;
         }}
         onTouchMoveCapture={(event) => {
           const y = event.touches[0].clientY;
-          if (touchY.current !== null && y > touchY.current) setFollowing(false);
+          if (touchY.current !== null && y > touchY.current) stopFollowing();
           touchY.current = y;
         }}
         onTouchEndCapture={(event) => {
@@ -366,7 +386,7 @@ export function MessageList({
             (["ArrowUp", "PageUp", "Home"].includes(event.key) ||
               (event.key === " " && event.shiftKey))
           )
-            setFollowing(false);
+            stopFollowing();
         }}
         onScroll={(event) => {
           const element = event.currentTarget;
@@ -374,12 +394,13 @@ export function MessageList({
           const distance = element.scrollHeight - top - element.clientHeight;
           // Resume only when moving down onto the bottom: smooth wheel scrolling starts with
           // tiny upward steps that are still within reach of the bottom.
-          if (dragging.current && top < lastTop.current) setFollowing(false);
+          if (dragging.current && top < lastTop.current) stopFollowing();
           else if (distance <= 2 && top >= lastTop.current) {
             animating.current = false;
             setFollowing(true);
           }
           lastTop.current = top;
+          updateLatest();
         }}
       >
         <div ref={content}>
