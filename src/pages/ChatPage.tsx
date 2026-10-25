@@ -3,6 +3,7 @@ import { useIsMutating, useMutation } from "@tanstack/react-query";
 import { RefreshCw, Settings } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useLayoutEffect, useRef, useState } from "react";
+import { AgendaModal, AgendaStrip } from "../components/Agenda";
 import { ApprovalCard } from "../components/ApprovalCard";
 import { Composer } from "../components/Composer";
 import { ConnectionForm } from "../components/ConnectionForm";
@@ -10,6 +11,7 @@ import { MessageList } from "../components/MessageList";
 import { SessionsModal } from "../components/SessionsModal";
 import { ModalHeader, presence, Toolbar } from "../components/Toolbar";
 import { IconButton, Spinner } from "../components/ui";
+import { agendaSummary } from "../state/agenda";
 import { currentApi, currentSessionId, handleActionError, reconnect } from "../state/connection";
 import { useClientStore } from "../state/store";
 
@@ -20,6 +22,7 @@ export function ChatPage() {
   const activity = useClientStore((state) => state.activity);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [agendaOpen, setAgendaOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const overlay = useRef<HTMLDivElement>(null);
   const [bottomInset, setBottomInset] = useState(96);
@@ -56,6 +59,7 @@ export function ChatPage() {
   });
   const active = running || send.isPending;
   const canSend = online && Boolean(snapshot?.session) && !active && !busy && Boolean(draft.trim());
+  const agenda = agendaSummary(snapshot);
   const currentPresence = presence({
     status,
     snapshot,
@@ -70,6 +74,7 @@ export function ChatPage() {
           presence={currentPresence}
           context={snapshot?.context}
           disabled={busy}
+          onAgenda={() => setAgendaOpen(true)}
           onSessions={() => setSessionsOpen(true)}
           onSettings={() => setSettingsOpen(true)}
         />
@@ -141,6 +146,7 @@ export function ChatPage() {
                 {snapshot.run.error.message}
               </p>
             )}
+            {agenda && <AgendaStrip summary={agenda} onOpen={() => setAgendaOpen(true)} />}
             <Composer
               value={draft}
               onChange={setDraft}
@@ -171,6 +177,7 @@ export function ChatPage() {
           </div>
         </IonContent>
       </IonModal>
+      <AgendaModal open={agendaOpen} onClose={() => setAgendaOpen(false)} snapshot={snapshot} />
       <SessionsModal
         open={sessionsOpen}
         onClose={() => setSessionsOpen(false)}

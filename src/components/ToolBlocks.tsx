@@ -42,7 +42,7 @@ function CatalogItem({ name, description }: { name: string; description: string 
   );
 }
 
-function Todos({ items }: { items: TodoItem[] }) {
+export function Todos({ items }: { items: TodoItem[] }) {
   if (!items.length) return <p className="m-0 py-1 text-sm text-muted-foreground">No todos.</p>;
   return (
     <ul className="m-0 flex list-none flex-col gap-1.5 p-0 py-1.5 text-sm">

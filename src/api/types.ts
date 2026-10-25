@@ -71,9 +71,34 @@ export interface PendingInput {
   imageCount?: number;
 }
 
+export interface ScheduledInput {
+  id: string;
+  sessionId: string;
+  dueAt: string;
+  message: string;
+  origin: "agent" | "user";
+  key?: string;
+}
+
 export interface InputQueue {
   pending: PendingInput[];
-  scheduled: { id: string; content: string; dueAt: string }[];
+  scheduled: ScheduledInput[];
+}
+
+export interface Todo {
+  content: string;
+  status: "pending" | "in_progress" | "completed";
+}
+
+export interface Goal {
+  id: string;
+  objective: string;
+  status: "active" | "completed" | "blocked" | "cancelled" | "round_limit";
+  admittedRounds: number;
+  maxRounds: number;
+  startedAt: string;
+  endedAt?: string;
+  detail?: string;
 }
 
 export type ApprovalDecision = "allow" | "reject" | "always" | "never";
@@ -104,6 +129,8 @@ export interface Snapshot {
   tools: ToolState[];
   context?: { estimated_tokens: number | null; context_limit: number };
   input_queue: InputQueue;
+  todo?: Todo[];
+  goal?: Goal | null;
   approvals: Approval[];
 }
 

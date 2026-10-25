@@ -3,6 +3,8 @@
 // including MCP and future ones, falls back to its name, a best-effort target, and raw
 // arguments and output.
 
+import { formatDue } from "../state/agenda";
+
 export type ToolPhase = "running" | "done" | "failed" | "canceled";
 
 export interface TodoItem {
@@ -470,12 +472,9 @@ export function toolMeta(call: ToolCallInput, outcome: ToolOutcome): string | un
     }
     case "schedule_wake": {
       const dueAt = string(result, "dueAt");
-      const due = dueAt ? new Date(dueAt) : undefined;
-      if (!due || Number.isNaN(due.getTime())) return undefined;
-      const time = due.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      return due.toDateString() === new Date().toDateString()
-        ? `at ${time}`
-        : `${due.toLocaleDateString([], { month: "short", day: "numeric" })} ${time}`;
+      if (!dueAt || Number.isNaN(new Date(dueAt).getTime())) return undefined;
+      const time = formatDue(dueAt);
+      return /^\d/.test(time) ? `at ${time}` : time;
     }
     default:
       return undefined;

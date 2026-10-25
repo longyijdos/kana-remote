@@ -201,6 +201,24 @@ describe("server event projection", () => {
       ),
     ).toBe(thinking);
   });
+  test("follows todo and goal changes", () => {
+    const items = [{ content: "Draft", status: "in_progress" }];
+    let state = applyEvent(snapshot(), event("todo.changed", { toolCallId: "t1", items }));
+    expect(state?.todo).toEqual(items);
+    const goal = {
+      id: "g1",
+      objective: "Ship it",
+      status: "active",
+      admittedRounds: 1,
+      maxRounds: 8,
+      startedAt: "2026-10-25T01:00:00.000Z",
+    };
+    state = applyEvent(state, event("goal.changed", { change: "started", goal }));
+    expect(state?.goal).toEqual(goal);
+    state = applyEvent(state, event("goal.changed", { change: "discarded", goal }));
+    expect(state?.goal).toBeNull();
+  });
+
   test("stopping a run keeps its queued inputs", () => {
     let state = applyEvent(snapshot(), event("run.started", { source: "user", input: user }));
     state = applyEvent(

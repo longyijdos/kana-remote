@@ -134,6 +134,12 @@ export function applyEvent(snapshot: Snapshot | null, event: ServerEvent): Snaps
     }
     case "input.queue_changed":
       return { ...snapshot, input_queue: event.data as Snapshot["input_queue"] };
+    case "todo.changed":
+      return { ...snapshot, todo: (event.data as { items: Snapshot["todo"] }).items };
+    case "goal.changed": {
+      const data = event.data as { change: string; goal: Snapshot["goal"] };
+      return { ...snapshot, goal: data.change === "discarded" ? null : data.goal };
+    }
     case "input.committed":
       return upsertMessage(snapshot, (event.data as { message: UserMessage }).message);
     case "context.updated":
