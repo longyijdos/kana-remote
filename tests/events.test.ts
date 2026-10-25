@@ -363,7 +363,7 @@ describe("transcript activity", () => {
     };
     const update = event("run.completed", { outcome: "aborted" });
     const stopped = applyEvent(state, update);
-    expect(stopped?.tools[0]).toMatchObject({ canceled: true, paused: false });
+    expect(stopped?.tools[0]).toMatchObject({ cancelled: true, paused: false });
     expect(projectActivity("preparing", update, stopped)).toBeNull();
     const failed = event("assistant.completed", {
       message: { ...toolMessage, stopReason: "error" },

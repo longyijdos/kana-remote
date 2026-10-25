@@ -5,7 +5,7 @@
 
 import { formatDue } from "../state/agenda";
 
-export type ToolPhase = "running" | "done" | "failed" | "canceled";
+export type ToolPhase = "running" | "done" | "failed" | "cancelled";
 
 export interface TodoItem {
   content: string;
@@ -288,7 +288,7 @@ function wording(call: ToolCallInput, result: unknown): Wording {
     case "cancel_subagent":
       return {
         action: "cancel subagent",
-        done: "Canceled subagent",
+        done: "Cancelled subagent",
         running: "Canceling subagent",
         approval: "cancel a subagent",
       };
@@ -802,13 +802,13 @@ export interface HostedToolAction {
 /** Provider-run tools such as OpenAI web search; the server only reports their action. */
 export function hostedToolTitle(
   name: string,
-  status: "in_progress" | "completed" | "canceled",
+  status: "in_progress" | "completed" | "cancelled",
   action?: HostedToolAction,
 ): { label: string; target?: string } {
   if (name !== "web_search") {
     return {
       label:
-        status === "canceled"
+        status === "cancelled"
           ? "Stopped provider tool"
           : status === "in_progress"
             ? "Using provider tool"
@@ -816,7 +816,7 @@ export function hostedToolTitle(
       target: name,
     };
   }
-  if (status === "canceled") return { label: "Stopped web search" };
+  if (status === "cancelled") return { label: "Stopped web search" };
   if (status === "in_progress") return { label: "Searching the web" };
   switch (action?.type) {
     case "search": {

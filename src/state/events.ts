@@ -116,7 +116,7 @@ export function applyEvent(snapshot: Snapshot | null, event: ServerEvent): Snaps
         tools:
           data.outcome === "aborted"
             ? snapshot.tools.map((tool) =>
-                tool.status === "running" ? { ...tool, canceled: true, paused: false } : tool,
+                tool.status === "running" ? { ...tool, cancelled: true, paused: false } : tool,
               )
             : snapshot.tools,
         run: snapshot.run

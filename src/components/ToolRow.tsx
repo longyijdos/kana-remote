@@ -38,7 +38,7 @@ type RowStatus = ToolPhase | "paused";
 
 function StatusIcon({ status, hosted }: { status: RowStatus; hosted?: boolean }) {
   const className = "size-3.5";
-  if (status === "canceled") return <Ban className={className} strokeWidth={2} />;
+  if (status === "cancelled") return <Ban className={className} strokeWidth={2} />;
   if (status === "failed") return <X className={`${className} text-rose-500`} strokeWidth={2.25} />;
   if (status === "paused")
     return <Pause className={`${className} text-amber-500`} strokeWidth={2.25} />;
@@ -52,7 +52,7 @@ const statusNames: Record<RowStatus, string> = {
   paused: "Waiting for approval",
   done: "Completed",
   failed: "Failed",
-  canceled: "Canceled",
+  cancelled: "Cancelled",
 };
 
 function Row({
@@ -84,7 +84,7 @@ function Row({
         {label}
       </span>
       <span
-        className={`min-w-0 flex-1 truncate font-mono text-[13px] ${status === "canceled" ? "line-through" : ""}`}
+        className={`min-w-0 flex-1 truncate font-mono text-[13px] ${status === "cancelled" ? "line-through" : ""}`}
       >
         {target?.replace(/\s+/g, " ")}
       </span>
@@ -158,15 +158,15 @@ export function ToolRow({
         artifact: result.artifact,
       }
     : stateOutcome(state);
-  const cancellation = outcome.result as { canceled?: boolean; status?: string; reason?: string };
-  const canceled = Boolean(
-    state?.canceled ||
-      cancellation?.canceled === true ||
-      (cancellation?.status === "canceled" && cancellation.reason === "run_aborted"),
+  const cancellation = outcome.result as { cancelled?: boolean; status?: string; reason?: string };
+  const cancelled = Boolean(
+    state?.cancelled ||
+      cancellation?.cancelled === true ||
+      (cancellation?.status === "cancelled" && cancellation.reason === "run_aborted"),
   );
   const completed = Boolean(result) || state?.status === "completed";
-  const phase: ToolPhase = canceled
-    ? "canceled"
+  const phase: ToolPhase = cancelled
+    ? "cancelled"
     : outcome.isError
       ? "failed"
       : completed
@@ -174,7 +174,7 @@ export function ToolRow({
         : "running";
   const status: RowStatus = phase === "running" && state?.paused ? "paused" : phase;
   const call = { name, args: args ?? state?.arguments };
-  const details = toolDetails(call, completed || canceled ? outcome : undefined);
+  const details = toolDetails(call, completed || cancelled ? outcome : undefined);
   const duration =
     result?.durationMs !== undefined && result.durationMs >= 1_000
       ? `${(result.durationMs / 1_000).toFixed(1)}s`
@@ -206,13 +206,13 @@ export function HostedToolRow({
   action,
 }: {
   name: string;
-  status: "in_progress" | "completed" | "canceled";
+  status: "in_progress" | "completed" | "cancelled";
   action?: HostedToolAction;
 }) {
   const title = hostedToolTitle(name, status, action);
   return (
     <Row
-      status={status === "in_progress" ? "running" : status === "canceled" ? "canceled" : "done"}
+      status={status === "in_progress" ? "running" : status === "cancelled" ? "cancelled" : "done"}
       label={title.label}
       target={title.target}
       hosted

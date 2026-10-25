@@ -26,7 +26,7 @@ export type AssistantContent =
       type: "hosted_tool";
       id: string;
       name: string;
-      status: "in_progress" | "completed" | "canceled";
+      status: "in_progress" | "completed" | "cancelled";
       action?: { type: string; query?: string; queries?: string[]; url?: string; pattern?: string };
     };
 
@@ -61,7 +61,7 @@ export interface ToolState {
   result?: unknown;
   is_error?: boolean;
   paused?: boolean;
-  canceled?: boolean;
+  cancelled?: boolean;
 }
 
 export interface PendingInput {
