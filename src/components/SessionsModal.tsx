@@ -130,9 +130,6 @@ export function SessionsModal({
                 )}
                 Start a new session
               </Button>
-              <p className="mb-0 mt-2 text-xs leading-5 text-muted-foreground">
-                The current session is saved and can be resumed later.
-              </p>
             </section>
             <h2 className="mb-1 mt-7 px-1 text-[13px] font-medium text-muted-foreground">
               Saved sessions
