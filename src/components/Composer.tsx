@@ -3,6 +3,9 @@ import { motion } from "motion/react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { IconButton } from "./ui";
 
+// Desktop keyboards send on Enter; touch keyboards keep Enter for new lines.
+const enterSends = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
 export function Composer({
   value,
   onChange,
@@ -57,10 +60,12 @@ export function Composer({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
-          if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && canSend) {
-            event.preventDefault();
-            onSend();
-          }
+          if (event.key !== "Enter" || event.shiftKey) return;
+          // Enter that confirms an IME candidate; Safari reports it as keyCode 229.
+          if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+          if (!(event.ctrlKey || event.metaKey || enterSends)) return;
+          event.preventDefault();
+          if (canSend) onSend();
         }}
       />
       <IconButton
