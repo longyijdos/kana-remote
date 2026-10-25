@@ -62,6 +62,10 @@ export function SessionsModal({
 }) {
   const status = useClientStore((state) => state.status);
   const session = useClientStore((state) => state.snapshot?.session);
+  const scheduledCount = useClientStore(
+    (state) => state.snapshot?.input_queue.scheduled.length ?? 0,
+  );
+  const goalActive = useClientStore((state) => state.snapshot?.goal?.status === "active");
   const active = session?.id;
   const queryClient = useQueryClient();
   const confirmation = useRef<HTMLIonModalElement>(null);
@@ -93,6 +97,11 @@ export function SessionsModal({
       .filter((item) => item.id !== active)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) ?? [];
   const started = session?.timeline[0]?.timestamp;
+  // Wakes and goals belong to the session that set them; Kana drops them on a switch.
+  const dropped = [
+    scheduledCount ? plural(scheduledCount, "scheduled message") : "",
+    goalActive ? "the active goal" : "",
+  ].filter(Boolean);
   const messageCount =
     session?.messages.filter(
       (message) =>
@@ -130,6 +139,11 @@ export function SessionsModal({
                 )}
                 Start a new session
               </Button>
+              {dropped.length > 0 && (
+                <p className="mb-0 mt-2 text-xs leading-5 text-amber-600 dark:text-amber-400">
+                  Switching sessions cancels {dropped.join(" and ")}.
+                </p>
+              )}
             </section>
             <h2 className="mb-1 mt-7 px-1 text-[13px] font-medium text-muted-foreground">
               Saved sessions
